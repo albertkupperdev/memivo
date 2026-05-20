@@ -21,7 +21,8 @@ export async function PATCH(
     .eq("id", id)
     .single();
 
-  if (!card || (card.documents as { user_id: string } | null)?.user_id !== user.id) {
+  const doc = Array.isArray(card.documents) ? card.documents[0] : card.documents;
+  if (!card || (doc as { user_id: string } | null)?.user_id !== user.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -52,7 +53,8 @@ export async function DELETE(
     .eq("id", id)
     .single();
 
-  if (!card || (card.documents as { user_id: string } | null)?.user_id !== user.id) {
+  const doc2 = Array.isArray(card.documents) ? card.documents[0] : card.documents;
+  if (!card || (doc2 as { user_id: string } | null)?.user_id !== user.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
