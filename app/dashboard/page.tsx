@@ -4,20 +4,16 @@ import DeckList from "@/components/DeckList";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: documents } = await supabase
-    .from("documents")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+  const [{ data: documents }, { data: folders }] = await Promise.all([
+    supabase.from("documents").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+    supabase.from("folders").select("*").eq("user_id", user.id).order("created_at", { ascending: true }),
+  ]);
 
   if (!documents || documents.length === 0) {
-    return <DeckList decks={[]} />;
+    return <DeckList decks={[]} folders={folders ?? []} />;
   }
 
   const docIds = documents.map((d) => d.id);
@@ -42,9 +38,8 @@ export default async function DashboardPage() {
       const due = reviewedMap.get(c.id);
       return !due || due <= today;
     }).length;
-
     return { ...doc, cardCount: docCards.length, dueCount };
   });
 
-  return <DeckList decks={decks} />;
+  return <DeckList decks={decks} folders={folders ?? []} />;
 }

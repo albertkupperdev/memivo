@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import DocumentUploader from "@/components/DocumentUploader";
 import { createClient } from "@/lib/supabase/client";
-import type { Document } from "@/types";
+import type { Document, Folder } from "@/types";
 
 interface DeckWithStats extends Document {
   cardCount: number;
@@ -14,6 +14,7 @@ interface DeckWithStats extends Document {
 
 interface Props {
   decks: DeckWithStats[];
+  folders: Folder[];
 }
 
 function Eyebrow({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -24,9 +25,23 @@ function Eyebrow({ children, className = "" }: { children: React.ReactNode; clas
   );
 }
 
-export default function DeckList({ decks }: Props) {
+export default function DeckList({ decks: initialDecks, folders: initialFolders }: Props) {
   const router = useRouter();
-  const [showUploader, setShowUploader] = useState(decks.length === 0);
+  const [decks, setDecks] = useState(initialDecks);
+  const [folders, setFolders] = useState(initialFolders);
+  const [showUploader, setShowUploader] = useState(initialDecks.length === 0);
+
+  // Folder creation
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [savingFolder, setSavingFolder] = useState(false);
+
+  // Folder rename
+  const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  // Deck → folder assignment
+  const [openMoveId, setOpenMoveId] = useState<string | null>(null);
 
   const totalDue = decks.reduce((acc, d) => acc + d.dueCount, 0);
   const totalCards = decks.reduce((acc, d) => acc + d.cardCount, 0);
@@ -36,6 +51,57 @@ export default function DeckList({ decks }: Props) {
     await supabase.auth.signOut();
     router.push("/login");
   }
+
+  async function createFolder() {
+    if (!newFolderName.trim()) return;
+    setSavingFolder(true);
+    const res = await fetch("/api/folders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newFolderName }),
+    });
+    if (res.ok) {
+      const folder = await res.json();
+      setFolders((prev) => [...prev, folder]);
+      setNewFolderName("");
+      setCreatingFolder(false);
+    }
+    setSavingFolder(false);
+  }
+
+  async function renameFolder(id: string, name: string) {
+    const res = await fetch(`/api/folders/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setFolders((prev) => prev.map((f) => (f.id === id ? updated : f)));
+      setRenamingFolderId(null);
+    }
+  }
+
+  async function deleteFolder(id: string) {
+    const res = await fetch(`/api/folders/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      setFolders((prev) => prev.filter((f) => f.id !== id));
+      setDecks((prev) => prev.map((d) => d.folder_id === id ? { ...d, folder_id: null } : d));
+    }
+  }
+
+  async function moveDeck(deckId: string, folderId: string | null) {
+    setOpenMoveId(null);
+    setDecks((prev) => prev.map((d) => d.id === deckId ? { ...d, folder_id: folderId } : d));
+    await fetch(`/api/documents/${deckId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ folder_id: folderId }),
+    });
+  }
+
+  const unfiledDecks = decks.filter((d) => !d.folder_id);
+  const folderMap = new Map(folders.map((f) => [f.id, f]));
 
   return (
     <div className="flex-1 w-full">
@@ -59,24 +125,23 @@ export default function DeckList({ decks }: Props) {
             Your <em className="not-italic" style={{ color: "var(--accent-deep)" }}>decks</em>.
           </h1>
 
-          {/* Stat strip */}
-          <div className="mt-7 grid grid-cols-3 divide-x" style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", borderColor: "var(--border)" }}>
+          <div className="mt-7 grid grid-cols-3 divide-x" style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
             <StatCell label="Decks" value={decks.length} />
             <StatCell label="Cards" value={totalCards} />
             <StatCell label="Due now" value={totalDue} accent={totalDue > 0} />
           </div>
         </header>
 
-        {/* New deck button / uploader */}
-        <div className="mb-6">
-          {!showUploader ? (
+        {/* Actions */}
+        <div className="mb-8 flex gap-2">
+          {!showUploader && (
             <button
               onClick={() => setShowUploader(true)}
-              className="group w-full inline-flex items-center justify-between gap-3 px-5 py-4 text-[15px] font-medium text-[var(--ink)] bg-white rounded-2xl transition-colors"
+              className="flex-1 group inline-flex items-center justify-between gap-3 px-5 py-4 text-[15px] font-medium text-[var(--ink)] bg-white rounded-2xl transition-colors"
               style={{ border: "1.5px dashed var(--border-strong)" }}
             >
               <span className="inline-flex items-center gap-3">
-                <span className="w-7 h-7 rounded-full flex items-center justify-center transition-colors" style={{ background: "var(--accent-bg)", color: "var(--accent-deep)" }}>
+                <span className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "var(--accent-bg)", color: "var(--accent-deep)" }}>
                   <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 5v14M5 12h14"/>
                   </svg>
@@ -85,13 +150,61 @@ export default function DeckList({ decks }: Props) {
               </span>
               <Eyebrow className="opacity-60">PDF or URL</Eyebrow>
             </button>
-          ) : (
-            <DocumentUploader onCancel={decks.length > 0 ? () => setShowUploader(false) : undefined} />
+          )}
+          {!creatingFolder && (
+            <button
+              onClick={() => { setCreatingFolder(true); setNewFolderName(""); }}
+              className="inline-flex items-center gap-1.5 px-4 py-4 text-sm font-medium rounded-2xl transition-colors bg-white"
+              style={{ border: "1px solid var(--border)", color: "var(--muted)" }}
+            >
+              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                <path d="M12 11v6M9 14h6"/>
+              </svg>
+              New folder
+            </button>
           )}
         </div>
 
-        {/* Deck list or empty state */}
-        {decks.length === 0 ? (
+        {showUploader && (
+          <div className="mb-8">
+            <DocumentUploader onCancel={decks.length > 0 ? () => setShowUploader(false) : undefined} />
+          </div>
+        )}
+
+        {/* New folder input */}
+        {creatingFolder && (
+          <div className="mb-6 p-5 rounded-2xl bg-white" style={{ border: "1px solid var(--border)" }}>
+            <Eyebrow>New folder</Eyebrow>
+            <input
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") createFolder(); if (e.key === "Escape") setCreatingFolder(false); }}
+              placeholder="Folder name…"
+              className="mt-2 w-full font-serif text-[22px] text-[var(--ink)] bg-transparent outline-none"
+              autoFocus
+            />
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={createFolder}
+                disabled={savingFolder || !newFolderName.trim()}
+                className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-lg text-white disabled:opacity-50"
+                style={{ background: "var(--ink)" }}
+              >
+                {savingFolder ? "Creating…" : "Create"}
+              </button>
+              <button
+                onClick={() => setCreatingFolder(false)}
+                className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium"
+                style={{ color: "var(--muted)" }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {decks.length === 0 && folders.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 text-center" style={{ border: "1px solid var(--border)" }}>
             <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-6" style={{ background: "var(--accent-bg)", color: "var(--accent-deep)" }}>
               <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -106,66 +219,222 @@ export default function DeckList({ decks }: Props) {
             </p>
           </div>
         ) : (
-          <ul className="flex flex-col gap-3">
-            {decks.map((deck, i) => (
-              <li key={deck.id}>
-                <Link
-                  href={`/deck/${deck.id}`}
-                  className="group block bg-white rounded-2xl p-6 transition-all relative overflow-hidden"
-                  style={{ border: "1px solid var(--border)" }}
-                >
-                  {/* Pistachio hover edge */}
-                  <span className="absolute left-0 top-6 bottom-6 w-[3px] rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "var(--accent)" }} />
-
-                  <div className="flex items-start gap-5">
-                    <div className="flex-shrink-0 pt-1">
-                      <span className="font-mono text-[11px] uppercase tracking-[0.14em] tabular-nums" style={{ color: "var(--soft)" }}>
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-serif text-[22px] leading-[1.15] text-[var(--ink)]">
-                        {deck.title}
-                      </h3>
-                      <div className="mt-2 flex items-center gap-2 text-[13px]" style={{ color: "var(--muted)" }}>
-                        {deck.source_type === "pdf" ? (
-                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
-                          </svg>
-                        ) : (
-                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 1 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 1 0 7.07 7.07l1.5-1.5"/>
-                          </svg>
-                        )}
-                        <span className="truncate">{deck.source_url ?? `${deck.title}.pdf`}</span>
+          <div className="flex flex-col gap-8">
+            {/* Folders */}
+            {folders.map((folder) => {
+              const folderDecks = decks.filter((d) => d.folder_id === folder.id);
+              return (
+                <div key={folder.id}>
+                  {/* Folder header */}
+                  <div className="flex items-center gap-2 mb-3">
+                    {renamingFolderId === folder.id ? (
+                      <input
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") renameFolder(folder.id, renameValue);
+                          if (e.key === "Escape") setRenamingFolderId(null);
+                        }}
+                        onBlur={() => { if (renameValue.trim()) renameFolder(folder.id, renameValue); else setRenamingFolderId(null); }}
+                        className="font-mono text-[11px] uppercase tracking-[0.14em] bg-transparent outline-none border-b"
+                        style={{ borderColor: "var(--accent)", color: "var(--ink)" }}
+                        autoFocus
+                      />
+                    ) : (
+                      <div className="group flex items-center gap-2">
+                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--muted)" }}>
+                          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        <Eyebrow>{folder.name}</Eyebrow>
+                        <span className="font-mono text-[11px]" style={{ color: "var(--border-strong)" }}>·</span>
+                        <Eyebrow>{folderDecks.length}</Eyebrow>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => { setRenamingFolderId(folder.id); setRenameValue(folder.name); }}
+                            className="p-1 rounded transition-colors hover:bg-[var(--bg-2)]"
+                            style={{ color: "var(--muted)" }}
+                            title="Rename folder"
+                          >
+                            <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => deleteFolder(folder.id)}
+                            className="p-1 rounded transition-colors hover:bg-[var(--bg-2)]"
+                            style={{ color: "var(--muted)" }}
+                            title="Delete folder"
+                          >
+                            <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                            </svg>
+                          </button>
+                        </div>
                       </div>
-                      <div className="mt-4 flex items-center gap-4">
-                        <span className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>
-                          <span className="tabular-nums" style={{ color: "var(--ink)" }}>{deck.cardCount}</span> cards
-                        </span>
-                        {deck.dueCount > 0 ? (
-                          <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--accent-deep)" }}>
-                            <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent)" }} />
-                            <span className="tabular-nums" style={{ color: "var(--ink)" }}>{deck.dueCount}</span> due
-                          </span>
-                        ) : (
-                          <span className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--soft)" }}>
-                            · All caught up
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <svg viewBox="0 0 24 24" className="w-5 h-5 mt-1 transition-all group-hover:translate-x-0.5" style={{ color: "var(--border-strong)" }} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
-                    </svg>
+                    )}
                   </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
+
+                  {folderDecks.length === 0 ? (
+                    <div className="rounded-2xl p-6 text-center" style={{ border: "1px dashed var(--border-strong)" }}>
+                      <Eyebrow>No decks yet</Eyebrow>
+                    </div>
+                  ) : (
+                    <ul className="flex flex-col gap-3">
+                      {folderDecks.map((deck, i) => (
+                        <DeckCard
+                          key={deck.id}
+                          deck={deck}
+                          index={i}
+                          folders={folders}
+                          openMoveId={openMoveId}
+                          setOpenMoveId={setOpenMoveId}
+                          onMove={moveDeck}
+                          currentFolderName={folderMap.get(deck.folder_id ?? "")?.name}
+                        />
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Unfiled decks */}
+            {unfiledDecks.length > 0 && (
+              <div>
+                {folders.length > 0 && (
+                  <div className="flex items-center gap-2 mb-3">
+                    <Eyebrow>Unfiled</Eyebrow>
+                    <span className="font-mono text-[11px]" style={{ color: "var(--border-strong)" }}>·</span>
+                    <Eyebrow>{unfiledDecks.length}</Eyebrow>
+                  </div>
+                )}
+                <ul className="flex flex-col gap-3">
+                  {unfiledDecks.map((deck, i) => (
+                    <DeckCard
+                      key={deck.id}
+                      deck={deck}
+                      index={i}
+                      folders={folders}
+                      openMoveId={openMoveId}
+                      setOpenMoveId={setOpenMoveId}
+                      onMove={moveDeck}
+                      currentFolderName={undefined}
+                    />
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
+  );
+}
+
+function DeckCard({
+  deck, index, folders, openMoveId, setOpenMoveId, onMove, currentFolderName,
+}: {
+  deck: DeckWithStats;
+  index: number;
+  folders: Folder[];
+  openMoveId: string | null;
+  setOpenMoveId: (id: string | null) => void;
+  onMove: (deckId: string, folderId: string | null) => void;
+  currentFolderName?: string;
+}) {
+  const isOpen = openMoveId === deck.id;
+
+  return (
+    <li className="relative">
+      <Link
+        href={`/deck/${deck.id}`}
+        className="group block bg-white rounded-2xl p-6 transition-all relative overflow-hidden"
+        style={{ border: "1px solid var(--border)" }}
+      >
+        <span className="absolute left-0 top-6 bottom-6 w-[3px] rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "var(--accent)" }} />
+
+        <div className="flex items-start gap-5">
+          <div className="flex-shrink-0 pt-1">
+            <span className="font-mono text-[11px] uppercase tracking-[0.14em] tabular-nums" style={{ color: "var(--soft)" }}>
+              {String(index + 1).padStart(2, "0")}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-serif text-[22px] leading-[1.15] text-[var(--ink)]">{deck.title}</h3>
+            <div className="mt-2 flex items-center gap-2 text-[13px]" style={{ color: "var(--muted)" }}>
+              {deck.source_type === "pdf" ? (
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 1 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 1 0 7.07 7.07l1.5-1.5"/>
+                </svg>
+              )}
+              <span className="truncate">{deck.source_url ?? `${deck.title}.pdf`}</span>
+            </div>
+            <div className="mt-4 flex items-center gap-4 flex-wrap">
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>
+                <span className="tabular-nums" style={{ color: "var(--ink)" }}>{deck.cardCount}</span> cards
+              </span>
+              {deck.dueCount > 0 ? (
+                <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--accent-deep)" }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent)" }} />
+                  <span className="tabular-nums" style={{ color: "var(--ink)" }}>{deck.dueCount}</span> due
+                </span>
+              ) : (
+                <span className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--soft)" }}>· All caught up</span>
+              )}
+              {/* Folder badge */}
+              {folders.length > 0 && (
+                <button
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenMoveId(isOpen ? null : deck.id); }}
+                  className="inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-full transition-colors"
+                  style={{
+                    background: isOpen ? "var(--accent-bg)" : "var(--bg-2)",
+                    color: isOpen ? "var(--accent-deep)" : "var(--soft)",
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  {currentFolderName ?? "Move"}
+                </button>
+              )}
+            </div>
+          </div>
+          <svg viewBox="0 0 24 24" className="w-5 h-5 mt-1 transition-all group-hover:translate-x-0.5 flex-shrink-0" style={{ color: "var(--border-strong)" }} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+          </svg>
+        </div>
+      </Link>
+
+      {/* Folder picker */}
+      {isOpen && (
+        <div
+          className="absolute left-6 z-10 mt-1 py-1 rounded-xl shadow-lg bg-white"
+          style={{ border: "1px solid var(--border)", minWidth: 160 }}
+        >
+          <button
+            onClick={() => onMove(deck.id, null)}
+            className="w-full text-left px-4 py-2 text-[13px] transition-colors hover:bg-[var(--bg-2)]"
+            style={{ color: deck.folder_id === null ? "var(--accent-deep)" : "var(--ink)" }}
+          >
+            No folder
+          </button>
+          {folders.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => onMove(deck.id, f.id)}
+              className="w-full text-left px-4 py-2 text-[13px] transition-colors hover:bg-[var(--bg-2)]"
+              style={{ color: deck.folder_id === f.id ? "var(--accent-deep)" : "var(--ink)" }}
+            >
+              {f.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </li>
   );
 }
 
