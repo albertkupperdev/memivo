@@ -43,6 +43,10 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
   // Deck → folder assignment
   const [openMoveId, setOpenMoveId] = useState<string | null>(null);
 
+  // Drag and drop
+  const [draggingDeckId, setDraggingDeckId] = useState<string | null>(null);
+  const [dragOverTarget, setDragOverTarget] = useState<string | null>(null); // folder id or "unfiled"
+
   const totalDue = decks.reduce((acc, d) => acc + d.dueCount, 0);
   const totalCards = decks.reduce((acc, d) => acc + d.cardCount, 0);
 
@@ -223,8 +227,16 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
             {/* Folders */}
             {folders.map((folder) => {
               const folderDecks = decks.filter((d) => d.folder_id === folder.id);
+              const isOver = dragOverTarget === folder.id;
               return (
-                <div key={folder.id}>
+                <div
+                  key={folder.id}
+                  onDragOver={(e) => { e.preventDefault(); setDragOverTarget(folder.id); }}
+                  onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverTarget(null); }}
+                  onDrop={(e) => { e.preventDefault(); if (draggingDeckId) moveDeck(draggingDeckId, folder.id); setDragOverTarget(null); setDraggingDeckId(null); }}
+                  className="rounded-2xl transition-all duration-150 p-2 -m-2"
+                  style={isOver ? { background: "var(--accent-bg)", outline: "2px solid var(--accent)", outlineOffset: -2 } : {}}
+                >
                   {/* Folder header */}
                   <div className="flex items-center gap-2 mb-3">
                     {renamingFolderId === folder.id ? (
@@ -275,8 +287,10 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
                   </div>
 
                   {folderDecks.length === 0 ? (
-                    <div className="rounded-2xl p-6 text-center" style={{ border: "1px dashed var(--border-strong)" }}>
-                      <Eyebrow>No decks yet</Eyebrow>
+                    <div className="rounded-2xl p-6 text-center" style={{ border: `1px dashed ${isOver ? "var(--accent)" : "var(--border-strong)"}` }}>
+                      <Eyebrow style={{ color: isOver ? "var(--accent-deep)" : undefined }}>
+                        {isOver ? "Drop here" : "No decks yet"}
+                      </Eyebrow>
                     </div>
                   ) : (
                     <ul className="flex flex-col gap-3">
@@ -289,6 +303,9 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
                           openMoveId={openMoveId}
                           setOpenMoveId={setOpenMoveId}
                           onMove={moveDeck}
+                          onDragStart={(id) => setDraggingDeckId(id)}
+                          onDragEnd={() => setDraggingDeckId(null)}
+                          isDragging={draggingDeckId === deck.id}
                           currentFolderName={folderMap.get(deck.folder_id ?? "")?.name}
                         />
                       ))}
@@ -299,13 +316,25 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
             })}
 
             {/* Unfiled decks */}
-            {unfiledDecks.length > 0 && (
-              <div>
+            {(unfiledDecks.length > 0 || (draggingDeckId && decks.find(d => d.id === draggingDeckId)?.folder_id)) && (
+              <div
+                onDragOver={(e) => { e.preventDefault(); setDragOverTarget("unfiled"); }}
+                onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverTarget(null); }}
+                onDrop={(e) => { e.preventDefault(); if (draggingDeckId) moveDeck(draggingDeckId, null); setDragOverTarget(null); setDraggingDeckId(null); }}
+                className="rounded-2xl transition-all duration-150 p-2 -m-2"
+                style={dragOverTarget === "unfiled" ? { background: "var(--bg-2)", outline: "2px solid var(--border-strong)", outlineOffset: -2 } : {}}
+              >
                 {folders.length > 0 && (
                   <div className="flex items-center gap-2 mb-3">
-                    <Eyebrow>Unfiled</Eyebrow>
-                    <span className="font-mono text-[11px]" style={{ color: "var(--border-strong)" }}>·</span>
-                    <Eyebrow>{unfiledDecks.length}</Eyebrow>
+                    <Eyebrow style={{ color: dragOverTarget === "unfiled" ? "var(--ink)" : undefined }}>
+                      {dragOverTarget === "unfiled" ? "Drop to unfile" : "Unfiled"}
+                    </Eyebrow>
+                    {dragOverTarget !== "unfiled" && (
+                      <>
+                        <span className="font-mono text-[11px]" style={{ color: "var(--border-strong)" }}>·</span>
+                        <Eyebrow>{unfiledDecks.length}</Eyebrow>
+                      </>
+                    )}
                   </div>
                 )}
                 <ul className="flex flex-col gap-3">
@@ -318,6 +347,9 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
                       openMoveId={openMoveId}
                       setOpenMoveId={setOpenMoveId}
                       onMove={moveDeck}
+                      onDragStart={(id) => setDraggingDeckId(id)}
+                      onDragEnd={() => setDraggingDeckId(null)}
+                      isDragging={draggingDeckId === deck.id}
                       currentFolderName={undefined}
                     />
                   ))}
@@ -332,7 +364,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
 }
 
 function DeckCard({
-  deck, index, folders, openMoveId, setOpenMoveId, onMove, currentFolderName,
+  deck, index, folders, openMoveId, setOpenMoveId, onMove, onDragStart, onDragEnd, isDragging, currentFolderName,
 }: {
   deck: DeckWithStats;
   index: number;
@@ -340,6 +372,9 @@ function DeckCard({
   openMoveId: string | null;
   setOpenMoveId: (id: string | null) => void;
   onMove: (deckId: string, folderId: string | null) => void;
+  onDragStart: (id: string) => void;
+  onDragEnd: () => void;
+  isDragging: boolean;
   currentFolderName?: string;
 }) {
   const isOpen = openMoveId === deck.id;
@@ -348,13 +383,21 @@ function DeckCard({
     <li className="relative">
       <Link
         href={`/deck/${deck.id}`}
+        draggable
+        onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart(deck.id); }}
+        onDragEnd={onDragEnd}
         className="group block bg-white rounded-2xl p-6 transition-all relative overflow-hidden"
-        style={{ border: "1px solid var(--border)" }}
+        style={{ border: "1px solid var(--border)", opacity: isDragging ? 0.4 : 1 }}
       >
         <span className="absolute left-0 top-6 bottom-6 w-[3px] rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "var(--accent)" }} />
 
         <div className="flex items-start gap-5">
-          <div className="flex-shrink-0 pt-1">
+          <div className="flex-shrink-0 pt-1 flex flex-col items-center gap-1.5">
+            <svg viewBox="0 0 10 16" className="w-2.5 h-4 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing" fill="currentColor" style={{ color: "var(--border-strong)" }}>
+              <circle cx="2" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/>
+              <circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/>
+              <circle cx="2" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/>
+            </svg>
             <span className="font-mono text-[11px] uppercase tracking-[0.14em] tabular-nums" style={{ color: "var(--soft)" }}>
               {String(index + 1).padStart(2, "0")}
             </span>
