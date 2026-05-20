@@ -3,6 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { groq, AI_MODEL } from "@/lib/ai";
 import { buildCardGenerationPrompt } from "@/lib/prompts";
 
+export const maxDuration = 300;
+
+const MAX_CHUNKS = 40;
+const DELAY_MS = 800;
+
 function isBoilerplate(text: string): boolean {
   const lower = text.toLowerCase();
   return (
@@ -13,6 +18,12 @@ function isBoilerplate(text: string): boolean {
     lower.includes("fernstudienzentrum") ||
     (text.match(/\.{5,}/g) ?? []).length >= 3
   );
+}
+
+function sampleChunks<T>(arr: T[], max: number): T[] {
+  if (arr.length <= max) return arr;
+  const step = arr.length / max;
+  return Array.from({ length: max }, (_, i) => arr[Math.floor(i * step)]);
 }
 
 export async function POST(request: Request) {
@@ -41,24 +52,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Document not found" }, { status: 404 });
   }
 
-  const { data: chunks, error: chunksError } = await supabase
+  const { data: allChunks, error: chunksError } = await supabase
     .from("chunks")
     .select("id, content")
     .eq("document_id", documentId)
     .order("chunk_index");
 
-  if (chunksError || !chunks || chunks.length === 0) {
+  if (chunksError || !allChunks || allChunks.length === 0) {
     return NextResponse.json({ error: "No chunks found for this document" }, { status: 404 });
   }
+
+  const contentChunks = allChunks.filter((c) => !isBoilerplate(c.content));
+  const chunks = sampleChunks(contentChunks, MAX_CHUNKS);
+
+  console.log(`[generate] ${allChunks.length} total → ${contentChunks.length} after boilerplate filter → ${chunks.length} sampled`);
 
   const allCards: { document_id: string; chunk_id: string; front: string; back: string }[] = [];
   const errors: string[] = [];
 
-  console.log(`[generate] processing ${chunks.length} chunks`);
-
   for (const chunk of chunks) {
-    if (isBoilerplate(chunk.content)) { console.log("[generate] skipped boilerplate chunk"); continue; }
-
     try {
       let completion;
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -73,7 +85,7 @@ export async function POST(request: Request) {
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           if (msg.includes("429") && attempt < 2) {
-            await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+            await new Promise((r) => setTimeout(r, 3000 * (attempt + 1)));
           } else throw err;
         }
       }
@@ -106,8 +118,9 @@ export async function POST(request: Request) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[generate] chunk error:", msg);
       errors.push(msg);
-      continue;
     }
+
+    await new Promise((r) => setTimeout(r, DELAY_MS));
   }
 
   if (allCards.length === 0) {
