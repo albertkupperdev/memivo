@@ -4,8 +4,9 @@ import { buildCardGenerationPrompt } from "@/lib/prompts";
 
 export const maxDuration = 60;
 
-const MAX_CHUNKS = 60;
-const BATCH_SIZE = 20;
+const MAX_CHUNKS = 20;
+const CONCURRENCY = 5;
+const REQUEST_TIMEOUT_MS = 10_000;
 
 function isBoilerplate(text: string): boolean {
   const lower = text.toLowerCase();
@@ -29,37 +30,57 @@ async function generateCardsForChunk(
   chunk: { id: string; content: string },
   documentId: string
 ): Promise<{ document_id: string; chunk_id: string; front: string; back: string }[]> {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const completion = await groq.chat.completions.create({
+  try {
+    const completion = await groq.chat.completions.create(
+      {
         model: AI_MODEL,
         messages: [{ role: "user", content: buildCardGenerationPrompt(chunk.content) }],
         temperature: 0.3,
         max_tokens: 1024,
-      });
+      },
+      { timeout: REQUEST_TIMEOUT_MS }
+    );
 
-      const raw = completion.choices[0]?.message?.content ?? "";
-      let parsed: { front: string; back: string }[];
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        const match = raw.match(/\[[\s\S]*\]/);
-        if (!match) return [];
-        parsed = JSON.parse(match[0]);
-      }
+    const raw = completion.choices[0]?.message?.content ?? "";
+    let parsed: { front: string; back: string }[];
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      const match = raw.match(/\[[\s\S]*\]/);
+      if (!match) return [];
+      parsed = JSON.parse(match[0]);
+    }
 
-      if (!Array.isArray(parsed)) return [];
-      return parsed
-        .filter((c) => typeof c.front === "string" && typeof c.back === "string")
-        .map((c) => ({ document_id: documentId, chunk_id: chunk.id, front: c.front.trim(), back: c.back.trim() }));
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("429") && attempt < 2) {
-        await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
-      } else return [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((c) => typeof c.front === "string" && typeof c.back === "string")
+      .map((c) => ({ document_id: documentId, chunk_id: chunk.id, front: c.front.trim(), back: c.back.trim() }));
+  } catch {
+    return [];
+  }
+}
+
+async function withConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>,
+  onEach: (done: number) => void
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  let done = 0;
+
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i]);
+      done++;
+      onEach(done);
     }
   }
-  return [];
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
+  return results;
 }
 
 export async function POST(request: Request) {
@@ -92,17 +113,16 @@ export async function POST(request: Request) {
       const send = (obj: object) =>
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
 
-      const allCards: { document_id: string; chunk_id: string; front: string; back: string }[] = [];
-      let processed = 0;
+      send({ progress: 0, total });
 
-      for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-        const batch = chunks.slice(i, i + BATCH_SIZE);
-        const results = await Promise.all(batch.map((c) => generateCardsForChunk(c, documentId)));
-        allCards.push(...results.flat());
-        processed += batch.length;
-        send({ progress: processed, total });
-        if (i + BATCH_SIZE < chunks.length) await new Promise((r) => setTimeout(r, 1000));
-      }
+      const cardResults = await withConcurrency(
+        chunks,
+        CONCURRENCY,
+        (c) => generateCardsForChunk(c, documentId),
+        (done) => send({ progress: done, total })
+      );
+
+      const allCards = cardResults.flat();
 
       if (allCards.length === 0) {
         send({ error: "Failed to generate any cards" });
