@@ -1,21 +1,17 @@
 export function buildCardGenerationPrompt(chunk: string): string {
-  return `You are a flashcard generator creating spaced-repetition cards for serious study. The text may be in any language — generate cards in the same language as the text.
+  return `Du bist ein Lernkarten-Generator. Erstelle 3-5 Lernkarten aus dem folgenden Text. Schreibe die Karten in der gleichen Sprache wie der Text.
 
-Generate cards for: mathematical concepts, definitions, theorems, formulas, solution procedures, principles, and worked examples. Numbered examples, exercises, and callout boxes are all valid sources.
+Eine Karte kann testen: eine Definition, eine Regel, eine Formel, ein Lösungsverfahren, ein Konzept, ein Beispiel oder einen Fachbegriff.
 
-Rules:
-- Each card tests exactly ONE concept, definition, or procedure
-- The front must be a specific question about the subject matter
-- The back must be a concise answer — 1 to 3 sentences maximum
-- Do not repeat the same concept across multiple cards
-- Generate between 2 and 4 cards
+Regeln:
+- Vorderseite: eine konkrete Frage zum Lernstoff
+- Rückseite: eine präzise Antwort (1-3 Sätze)
+- Keine doppelten Konzepte
 
-Return an empty array [] ONLY when the chunk contains zero educational content — i.e. it is purely copyright text, a legal disclaimer, publisher metadata, a table of contents with no explanations, or a blank/title page. Any chunk that teaches, defines, or demonstrates something should produce cards.
+Gib NUR ein JSON-Array zurück — kein Text davor oder danach:
+[{"front": "...", "back": "..."}]
 
-Return a JSON array only — no explanation, no markdown, no code fences:
-[
-  { "front": "...", "back": "..." }
-]
+Gib [] zurück NUR wenn der Text ausschließlich aus Folgendem besteht: Urheberrechtshinweis, Impressum, Inhaltsverzeichnis ohne Erklärungen, oder eine leere/Titelseite. Jeder Text mit Lerninhalt muss Karten erzeugen.
 
 Text:
 ${chunk}`;

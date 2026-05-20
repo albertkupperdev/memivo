@@ -5,7 +5,8 @@ import { buildCardGenerationPrompt } from "@/lib/prompts";
 
 export const maxDuration = 60;
 
-const MAX_CHUNKS = 25;
+const MAX_CHUNKS = 60;
+const BATCH_SIZE = 20;
 
 function isBoilerplate(text: string): boolean {
   const lower = text.toLowerCase();
@@ -108,8 +109,13 @@ export async function POST(request: Request) {
 
   console.log(`[generate] ${allChunks.length} → ${contentChunks.length} → ${chunks.length} chunks`);
 
-  const results = await Promise.all(chunks.map((c) => generateCardsForChunk(c, documentId)));
-  const allCards = results.flat();
+  const allCards: { document_id: string; chunk_id: string; front: string; back: string }[] = [];
+  for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+    const batch = chunks.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(batch.map((c) => generateCardsForChunk(c, documentId)));
+    allCards.push(...results.flat());
+    if (i + BATCH_SIZE < chunks.length) await new Promise((r) => setTimeout(r, 1000));
+  }
 
   if (allCards.length === 0) {
     return NextResponse.json({ error: "Failed to generate any cards" }, { status: 500 });
