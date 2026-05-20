@@ -60,17 +60,24 @@ export async function POST(request: Request) {
     if (isBoilerplate(chunk.content)) { console.log("[generate] skipped boilerplate chunk"); continue; }
 
     try {
-      const completion = await groq.chat.completions.create({
-        model: AI_MODEL,
-        messages: [
-          {
-            role: "user",
-            content: buildCardGenerationPrompt(chunk.content),
-          },
-        ],
-        temperature: 0.3,
-        max_tokens: 1024,
-      });
+      let completion;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          completion = await groq.chat.completions.create({
+            model: AI_MODEL,
+            messages: [{ role: "user", content: buildCardGenerationPrompt(chunk.content) }],
+            temperature: 0.3,
+            max_tokens: 1024,
+          });
+          break;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (msg.includes("429") && attempt < 2) {
+            await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+          } else throw err;
+        }
+      }
+      if (!completion) continue;
 
       const raw = completion.choices[0]?.message?.content ?? "";
 
