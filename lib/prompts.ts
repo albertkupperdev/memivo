@@ -10,6 +10,8 @@ Rules:
 
 Do NOT create cards about: the structure or outline of the book/course, what topics are covered in which chapter, course objectives, or instructions on how to use the study material.
 
+Do NOT create cards that ask for specific numerical answers to word problems from the text (e.g. "How much money does Larissa get?", "How many legs do the animals have?"). These test recall of a specific exercise, not a transferable concept. Instead, extract the general rule, method, or concept the example is illustrating.
+
 Return ONLY a JSON array — no text before or after:
 [{"front": "...", "back": "..."}]
 
