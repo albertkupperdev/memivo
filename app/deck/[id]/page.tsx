@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -60,6 +60,15 @@ export default function DeckPage() {
   const [newFront, setNewFront] = useState("");
   const [newBack, setNewBack] = useState("");
   const [creatingCard, setCreatingCard] = useState(false);
+
+  // Scroll-aware header
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 80);
+    window.addEventListener("scroll", handler, { passive: true });
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
 
   // Deck rename
   const [renamingDeck, setRenamingDeck] = useState(false);
@@ -225,19 +234,21 @@ export default function DeckPage() {
 
   return (
     <div className="flex-1 w-full">
-      {/* Sticky hero — offset below navbar (~47px) */}
+      {/* Sticky hero */}
       <div className="sticky top-[47px] z-20 w-full" style={{ background: "var(--bg)", borderBottom: "1px solid var(--border)" }}>
-        <div className="max-w-2xl mx-auto px-6 pt-4 pb-4">
+        <div className={`max-w-2xl mx-auto px-6 transition-all duration-300 ${scrolled ? "py-3" : "py-7"}`}>
 
-        {/* Hero */}
-        <div>
-          <Eyebrow>
-            {document?.source_type === "pdf" ? "PDF source" : "Web source"}
-            {document?.source_url && ` · ${document.source_url}`}
-          </Eyebrow>
+          {/* Eyebrow — hidden when scrolled */}
+          {!scrolled && (
+            <Eyebrow>
+              {document?.source_type === "pdf" ? "PDF source" : "Web source"}
+              {document?.source_url && ` · ${document.source_url}`}
+            </Eyebrow>
+          )}
 
+          {/* Title row */}
           {renamingDeck ? (
-            <div className="mt-3">
+            <div className="mt-2">
               <input
                 ref={renameTitleRef}
                 value={renameTitle}
@@ -246,114 +257,105 @@ export default function DeckPage() {
                   if (e.key === "Enter") saveRename();
                   if (e.key === "Escape") setRenamingDeck(false);
                 }}
-                className="w-full font-serif text-[44px] leading-[1.05] text-[var(--ink)] bg-transparent outline-none border-b-2"
+                className={`w-full font-serif leading-tight text-[var(--ink)] bg-transparent outline-none border-b-2 transition-all duration-300 ${scrolled ? "text-[22px]" : "text-[40px]"}`}
                 style={{ borderColor: "var(--accent)" }}
                 autoFocus
               />
-              <div className="mt-3 flex gap-2">
-                <button
-                  onClick={saveRename}
-                  disabled={savingRename || !renameTitle.trim()}
-                  className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-50"
-                  style={{ background: "var(--ink)" }}
-                >
+              <div className="mt-2 flex gap-2">
+                <button onClick={saveRename} disabled={savingRename || !renameTitle.trim()} className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-50" style={{ background: "var(--ink)" }}>
                   {savingRename ? "Saving…" : "Save"}
                 </button>
-                <button
-                  onClick={() => setRenamingDeck(false)}
-                  className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium transition-colors"
-                  style={{ color: "var(--muted)" }}
-                >
+                <button onClick={() => setRenamingDeck(false)} className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium transition-colors" style={{ color: "var(--muted)" }}>
                   Cancel
                 </button>
               </div>
             </div>
           ) : (
-            <div className="group mt-1 flex items-start gap-3">
-              <h1 className="font-serif text-[30px] leading-[1.1] text-[var(--ink)]">
+            <div className={`group flex items-center gap-3 ${scrolled ? "mt-0" : "mt-2"}`}>
+              <h1 className={`font-serif leading-tight text-[var(--ink)] transition-all duration-300 ${scrolled ? "text-[22px]" : "text-[40px]"}`}>
                 {document?.title ?? "Loading…"}
               </h1>
-              {document && (
-                <button
-                  onClick={startRename}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity mt-4 shrink-0"
-                  style={{ color: "var(--muted)" }}
-                  title="Rename deck"
-                >
+              {scrolled && dueCount > 0 && (
+                <span className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>
+                  {dueCount} due
+                </span>
+              )}
+              {document && !scrolled && (
+                <button onClick={startRename} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "var(--muted)" }} title="Rename deck">
                   <PencilIcon />
                 </button>
               )}
             </div>
           )}
 
-          {/* Stat strip */}
-          <div className="mt-3 grid grid-cols-3 divide-x" style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
-            <StatCell label="Total" value={cards.length} compact />
-            <StatCell label="Due now" value={dueCount} accent={dueCount > 0} compact />
-            <StatCell label="Source" value={document?.source_type?.toUpperCase() ?? "—"} compact />
-          </div>
+          {/* Stat strip — hidden when scrolled */}
+          {!scrolled && (
+            <div className="mt-4 grid grid-cols-3 divide-x" style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
+              <StatCell label="Total" value={cards.length} />
+              <StatCell label="Due now" value={dueCount} accent={dueCount > 0} />
+              <StatCell label="Source" value={document?.source_type?.toUpperCase() ?? "—"} />
+            </div>
+          )}
 
-          <div className="mt-4 flex flex-col sm:flex-row gap-2">
+          {/* Action buttons */}
+          <div className={`flex flex-wrap gap-2 ${scrolled ? "mt-2" : "mt-4"}`}>
             <button
               onClick={() => router.push(`/review/${id}`)}
               disabled={generating || cards.length === 0}
-              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-[14px] font-medium rounded-xl transition-colors group"
+              className={`flex-1 inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-colors ${scrolled ? "px-4 py-1.5 text-[13px]" : "px-4 py-2.5 text-[14px]"}`}
               style={{
                 background: generating || cards.length === 0 ? "var(--border-strong)" : "var(--ink)",
                 color: generating || cards.length === 0 ? "var(--soft)" : "var(--bg)",
                 cursor: generating || cards.length === 0 ? "not-allowed" : "pointer",
               }}
             >
-              {generating ? "Generating cards…" : (
+              {generating ? "Generating…" : (
                 <>
                   Start review
-                  {dueCount > 0 && (
-                    <span className="font-mono text-[11px] tracking-[0.14em] uppercase opacity-70">· {dueCount} due</span>
-                  )}
-                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  {dueCount > 0 && <span className="font-mono text-[11px] tracking-[0.14em] uppercase opacity-70">· {dueCount} due</span>}
+                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
                   </svg>
                 </>
               )}
             </button>
-            {!confirming && (
+            {!generating && (
               <button
-                onClick={() => setConfirming(true)}
-                className="inline-flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors"
-                style={{ color: "var(--muted)" }}
+                onClick={() => { setAddingCard(true); setTimeout(() => document?.querySelector<HTMLTextAreaElement>("#new-card-front")?.focus(), 50); }}
+                className={`inline-flex items-center justify-center gap-1.5 font-medium rounded-xl transition-colors ${scrolled ? "px-3 py-1.5 text-[13px]" : "px-3 py-2.5 text-sm"}`}
+                style={{ background: "var(--bg-2)", color: "var(--ink)" }}
               >
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 5v14"/><path d="M5 12h14"/>
+                </svg>
+                New card
+              </button>
+            )}
+            {!confirming && !scrolled && (
+              <button onClick={() => setConfirming(true)} className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors" style={{ color: "var(--muted)" }}>
                 <TrashIcon />
                 Delete
               </button>
             )}
           </div>
 
-          {confirming && (
-            <div className="mt-5 p-6 rounded-2xl" style={{ background: "var(--complement-bg)", border: "1px solid var(--complement-border)" }}>
+          {/* Delete confirmation — only when not scrolled */}
+          {confirming && !scrolled && (
+            <div className="mt-4 p-5 rounded-2xl" style={{ background: "var(--complement-bg)", border: "1px solid var(--complement-border)" }}>
               <Eyebrow style={{ color: "var(--complement-deep)" }}>Delete deck?</Eyebrow>
-              <p className="mt-2 text-[15px] leading-relaxed" style={{ color: "var(--complement-deeper)" }}>
-                All <span className="font-medium text-[var(--ink)]">{cards.length}</span> cards and review history will be permanently removed. This can't be undone.
+              <p className="mt-2 text-[14px] leading-relaxed" style={{ color: "var(--complement-deeper)" }}>
+                All <span className="font-medium text-[var(--ink)]">{cards.length}</span> cards and review history will be permanently removed.
               </p>
-              <div className="mt-5 flex gap-2">
-                <button
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-xl text-white transition-colors disabled:opacity-50"
-                  style={{ background: "var(--complement)" }}
-                >
-                  {deleting ? "Deleting…" : "Yes, delete deck"}
+              <div className="mt-4 flex gap-2">
+                <button onClick={handleDelete} disabled={deleting} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-xl text-white transition-colors disabled:opacity-50" style={{ background: "var(--complement)" }}>
+                  {deleting ? "Deleting…" : "Yes, delete"}
                 </button>
-                <button
-                  onClick={() => setConfirming(false)}
-                  className="inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium transition-colors"
-                  style={{ color: "var(--muted)" }}
-                >
+                <button onClick={() => setConfirming(false)} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium transition-colors" style={{ color: "var(--muted)" }}>
                   Cancel
                 </button>
               </div>
             </div>
           )}
-        </div>
         </div>
       </div>
 
@@ -372,27 +374,14 @@ export default function DeckPage() {
         <div>
           <div className="flex items-baseline justify-between mb-6">
             <h2 className="font-serif text-[28px] leading-tight text-[var(--ink)]">All cards</h2>
-            <div className="flex items-center gap-4">
-              <Eyebrow>{generating ? "Generating…" : `${cards.length} total`}</Eyebrow>
-              {!generating && !addingCard && (
-                <button
-                  onClick={() => setAddingCard(true)}
-                  className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
-                  style={{ color: "var(--accent-deep)" }}
-                >
-                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 5v14"/><path d="M5 12h14"/>
-                  </svg>
-                  New card
-                </button>
-              )}
-            </div>
+            <Eyebrow>{generating ? "Generating…" : `${cards.length} total`}</Eyebrow>
           </div>
 
           {addingCard && (
             <div className="mb-6 p-6 rounded-2xl" style={{ border: "1px solid var(--accent-tint)", background: "var(--accent-bg)" }}>
               <Eyebrow style={{ color: "var(--accent-deep)" }}>New card</Eyebrow>
               <textarea
+                id="new-card-front"
                 value={newFront}
                 onChange={(e) => setNewFront(e.target.value)}
                 rows={2}
