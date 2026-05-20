@@ -222,7 +222,7 @@ export default function DeckPage() {
       if (!andAnother) {
         setAddingCard(false);
       } else {
-        setTimeout(() => document.getElementById("new-card-front")?.focus(), 0);
+        setTimeout(() => window.document.getElementById("new-card-front")?.focus(), 0);
       }
     }
     setCreatingCard(false);
