@@ -221,25 +221,28 @@ export default function DeckPage() {
               <p className="mt-3 text-[14.5px] leading-relaxed max-w-sm mx-auto" style={{ color: "var(--ink-soft)" }}>
                 Reading your source and shaping it into flashcards.
               </p>
-              {genTotal > 0 && (
-                <div className="mt-8 max-w-xs mx-auto">
-                  <div className="flex justify-between items-baseline mb-2">
-                    <span className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>Progress</span>
+              <div className="mt-8 max-w-xs mx-auto">
+                <div className="flex justify-between items-baseline mb-2">
+                  <span className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>
+                    {genTotal > 0 ? `${genProgress} / ${genTotal} sections` : "Starting…"}
+                  </span>
+                  {genTotal > 0 && (
                     <span className="font-mono text-[11px] tabular-nums" style={{ color: "var(--accent-deep)" }}>
                       {Math.round((genProgress / genTotal) * 100)}%
                     </span>
-                  </div>
-                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--accent-bg)" }}>
+                  )}
+                </div>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--accent-bg)" }}>
+                  {genTotal > 0 ? (
                     <div
                       className="h-full rounded-full transition-all duration-500"
                       style={{ width: `${Math.round((genProgress / genTotal) * 100)}%`, background: "var(--accent)" }}
                     />
-                  </div>
-                  <p className="mt-2 font-mono text-[10px] tabular-nums" style={{ color: "var(--soft)" }}>
-                    {genProgress} / {genTotal} sections
-                  </p>
+                  ) : (
+                    <div className="h-full rounded-full animate-pulse w-full" style={{ background: "var(--accent)" }} />
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           ) : loading ? (
             <div className="flex flex-col">
