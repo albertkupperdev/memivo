@@ -3,6 +3,18 @@ import { createClient } from "@/lib/supabase/server";
 import { groq, AI_MODEL } from "@/lib/ai";
 import { buildCardGenerationPrompt } from "@/lib/prompts";
 
+function isBoilerplate(text: string): boolean {
+  const lower = text.toLowerCase();
+  return (
+    text.includes("©") ||
+    lower.includes("alle rechte vorbehalten") ||
+    lower.includes("all rights reserved") ||
+    lower.includes("urheberrechtlich") ||
+    lower.includes("fernstudienzentrum") ||
+    (text.match(/\.{5,}/g) ?? []).length >= 3
+  );
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {
@@ -40,8 +52,13 @@ export async function POST(request: Request) {
   }
 
   const allCards: { document_id: string; chunk_id: string; front: string; back: string }[] = [];
+  const errors: string[] = [];
+
+  console.log(`[generate] processing ${chunks.length} chunks`);
 
   for (const chunk of chunks) {
+    if (isBoilerplate(chunk.content)) { console.log("[generate] skipped boilerplate chunk"); continue; }
+
     try {
       const completion = await groq.chat.completions.create({
         model: AI_MODEL,
@@ -62,7 +79,7 @@ export async function POST(request: Request) {
         parsed = JSON.parse(raw);
       } catch {
         const match = raw.match(/\[[\s\S]*\]/);
-        if (!match) continue;
+        if (!match) { errors.push(`parse_fail: ${raw.slice(0, 100)}`); continue; }
         parsed = JSON.parse(match[0]);
       }
 
@@ -78,13 +95,17 @@ export async function POST(request: Request) {
           });
         }
       }
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[generate] chunk error:", msg);
+      errors.push(msg);
       continue;
     }
   }
 
   if (allCards.length === 0) {
-    return NextResponse.json({ error: "Failed to generate any cards" }, { status: 500 });
+    console.error("[generate] no cards produced. errors:", JSON.stringify(errors));
+    return NextResponse.json({ error: "Failed to generate any cards", debug: errors }, { status: 500 });
   }
 
   const { data: savedCards, error: saveError } = await supabase
