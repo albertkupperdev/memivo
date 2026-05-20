@@ -63,14 +63,22 @@ export default function DeckPage() {
 
   // Scroll-aware header
   const [scrolled, setScrolled] = useState(false);
+  const [heroHeight, setHeroHeight] = useState(0);
+  const heroRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handler = () => {
-      const y = window.scrollY;
-      setScrolled((prev) => (prev ? y > 40 : y > 100));
-    };
+    const handler = () => setScrolled(window.scrollY > 80);
     window.addEventListener("scroll", handler, { passive: true });
     return () => window.removeEventListener("scroll", handler);
+  }, []);
+
+  useEffect(() => {
+    if (!heroRef.current) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setHeroHeight(entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height);
+    });
+    ro.observe(heroRef.current);
+    return () => ro.disconnect();
   }, []);
 
   // Deck rename
@@ -241,8 +249,8 @@ export default function DeckPage() {
 
   return (
     <div className="flex-1 w-full">
-      {/* Sticky hero */}
-      <div className="sticky top-[47px] z-20 w-full" style={{ background: "var(--bg)", borderBottom: "1px solid var(--border)" }}>
+      {/* Fixed hero — fixed so height changes don't affect scrollY */}
+      <div ref={heroRef} className="fixed left-0 right-0 z-20" style={{ top: 47, background: "var(--bg)", borderBottom: "1px solid var(--border)" }}>
         <div className={`max-w-2xl mx-auto px-6 transition-all duration-300 ${scrolled ? "py-3" : "py-7"}`}>
 
           {/* Eyebrow — hidden when scrolled */}
@@ -366,7 +374,8 @@ export default function DeckPage() {
         </div>
       </div>
 
-      {/* Scrollable content */}
+      {/* Scrollable content — padded to sit below fixed hero */}
+      <div style={{ paddingTop: heroHeight }}>
       <div className="max-w-2xl mx-auto px-6 pt-8 pb-10">
         <Link
           href="/dashboard"
@@ -622,6 +631,7 @@ export default function DeckPage() {
             </ol>
           )}
         </div>
+      </div>
       </div>
     </div>
   );
