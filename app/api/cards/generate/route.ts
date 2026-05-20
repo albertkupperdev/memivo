@@ -16,6 +16,8 @@ function isBoilerplate(text: string): boolean {
     lower.includes("all rights reserved") ||
     lower.includes("urheberrechtlich") ||
     lower.includes("fernstudienzentrum") ||
+    lower.includes("studienteilnehmer") ||
+    lower.includes("wir wünschen ihnen") ||
     (text.match(/\.{5,}/g) ?? []).length >= 3
   );
 }

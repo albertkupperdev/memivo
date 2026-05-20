@@ -11,7 +11,9 @@ Regeln:
 Gib NUR ein JSON-Array zurück — kein Text davor oder danach:
 [{"front": "...", "back": "..."}]
 
-Gib [] zurück NUR wenn der Text ausschließlich aus Folgendem besteht: Urheberrechtshinweis, Impressum, Inhaltsverzeichnis ohne Erklärungen, oder eine leere/Titelseite. Jeder Text mit Lerninhalt muss Karten erzeugen.
+Erstelle KEINE Karten über: die Struktur oder den Aufbau des Heftes, was in welchem Kapitel behandelt wird, Lernziele des Kurses, oder Hinweise zum Umgang mit dem Lernmaterial.
+
+Gib [] zurück NUR wenn der Text ausschließlich aus Folgendem besteht: Urheberrechtshinweis, Impressum, Inhaltsverzeichnis ohne Erklärungen, oder eine leere/Titelseite. Jeder Text mit konkretem Lerninhalt muss Karten erzeugen.
 
 Text:
 ${chunk}`;
