@@ -24,6 +24,8 @@ export default function DeckPage() {
   const [dueCount, setDueCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [genProgress, setGenProgress] = useState(0);
+  const [genTotal, setGenTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -63,10 +65,31 @@ export default function DeckPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ documentId: id }),
       });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Generation failed."); setGenerating(false); return; }
-      setCards(data.cards);
-      setGenerating(false);
+      if (!res.ok || !res.body) { setError("Generation failed."); setGenerating(false); return; }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const msg = JSON.parse(line.slice(6));
+            if (msg.progress !== undefined) {
+              setGenProgress(msg.progress);
+              setGenTotal(msg.total);
+            }
+            if (msg.error) { setError(msg.error); setGenerating(false); return; }
+            if (msg.done) { setCards(msg.cards); setGenerating(false); return; }
+          } catch { /* ignore malformed line */ }
+        }
+      }
     }
     load();
   }, [id]);
@@ -196,8 +219,27 @@ export default function DeckPage() {
               </div>
               <h3 className="font-serif text-[24px] leading-tight text-[var(--ink)]">Writing cards…</h3>
               <p className="mt-3 text-[14.5px] leading-relaxed max-w-sm mx-auto" style={{ color: "var(--ink-soft)" }}>
-                We're reading your source and shaping it into flashcards. This usually takes 30–60 seconds.
+                Reading your source and shaping it into flashcards.
               </p>
+              {genTotal > 0 && (
+                <div className="mt-8 max-w-xs mx-auto">
+                  <div className="flex justify-between items-baseline mb-2">
+                    <span className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>Progress</span>
+                    <span className="font-mono text-[11px] tabular-nums" style={{ color: "var(--accent-deep)" }}>
+                      {Math.round((genProgress / genTotal) * 100)}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--accent-bg)" }}>
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${Math.round((genProgress / genTotal) * 100)}%`, background: "var(--accent)" }}
+                    />
+                  </div>
+                  <p className="mt-2 font-mono text-[10px] tabular-nums" style={{ color: "var(--soft)" }}>
+                    {genProgress} / {genTotal} sections
+                  </p>
+                </div>
+              )}
             </div>
           ) : loading ? (
             <div className="flex flex-col">
