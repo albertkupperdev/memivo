@@ -225,7 +225,7 @@ export default function ReviewPage() {
       <div className="flex-1 w-full flex items-start justify-center px-6 pb-10">
         <div className="w-full max-w-3xl">
           <div className="bg-white rounded-3xl min-h-[360px] p-8 sm:p-12 flex flex-col relative overflow-hidden" style={{ border: "1px solid var(--border)" }}>
-            <span className="absolute top-6 right-7 font-mono text-[11px] uppercase tracking-[0.14em] tabular-nums" style={{ color: "var(--border-strong)" }}>
+            <span className={`absolute top-6 right-7 font-mono text-[11px] uppercase tracking-[0.14em] tabular-nums ${showProgress ? "" : "invisible"}`} style={{ color: "var(--border-strong)" }}>
               {String(idx + 1).padStart(2, "0")} · {String(total).padStart(2, "0")}
             </span>
 
