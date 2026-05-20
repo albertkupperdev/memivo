@@ -3,10 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { groq, AI_MODEL } from "@/lib/ai";
 import { buildCardGenerationPrompt } from "@/lib/prompts";
 
-export const maxDuration = 300;
+export const maxDuration = 60;
 
-const MAX_CHUNKS = 40;
-const DELAY_MS = 800;
+const MAX_CHUNKS = 25;
 
 function isBoilerplate(text: string): boolean {
   const lower = text.toLowerCase();
@@ -26,21 +25,63 @@ function sampleChunks<T>(arr: T[], max: number): T[] {
   return Array.from({ length: max }, (_, i) => arr[Math.floor(i * step)]);
 }
 
+async function generateCardsForChunk(
+  chunk: { id: string; content: string },
+  documentId: string
+): Promise<{ document_id: string; chunk_id: string; front: string; back: string }[]> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const completion = await groq.chat.completions.create({
+        model: AI_MODEL,
+        messages: [{ role: "user", content: buildCardGenerationPrompt(chunk.content) }],
+        temperature: 0.3,
+        max_tokens: 1024,
+      });
+
+      const raw = completion.choices[0]?.message?.content ?? "";
+
+      let parsed: { front: string; back: string }[];
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        const match = raw.match(/\[[\s\S]*\]/);
+        if (!match) return [];
+        parsed = JSON.parse(match[0]);
+      }
+
+      if (!Array.isArray(parsed)) return [];
+
+      return parsed
+        .filter((c) => typeof c.front === "string" && typeof c.back === "string")
+        .map((c) => ({
+          document_id: documentId,
+          chunk_id: chunk.id,
+          front: c.front.trim(),
+          back: c.back.trim(),
+        }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("429") && attempt < 2) {
+        await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+      } else {
+        console.error("[generate] chunk error:", msg);
+        return [];
+      }
+    }
+  }
+  return [];
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { documentId } = await request.json();
-
-  if (!documentId) {
-    return NextResponse.json({ error: "documentId is required" }, { status: 400 });
-  }
+  if (!documentId) return NextResponse.json({ error: "documentId is required" }, { status: 400 });
 
   const { data: document } = await supabase
     .from("documents")
@@ -65,67 +106,13 @@ export async function POST(request: Request) {
   const contentChunks = allChunks.filter((c) => !isBoilerplate(c.content));
   const chunks = sampleChunks(contentChunks, MAX_CHUNKS);
 
-  console.log(`[generate] ${allChunks.length} total → ${contentChunks.length} after boilerplate filter → ${chunks.length} sampled`);
+  console.log(`[generate] ${allChunks.length} → ${contentChunks.length} → ${chunks.length} chunks`);
 
-  const allCards: { document_id: string; chunk_id: string; front: string; back: string }[] = [];
-  const errors: string[] = [];
-
-  for (const chunk of chunks) {
-    try {
-      let completion;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          completion = await groq.chat.completions.create({
-            model: AI_MODEL,
-            messages: [{ role: "user", content: buildCardGenerationPrompt(chunk.content) }],
-            temperature: 0.3,
-            max_tokens: 1024,
-          });
-          break;
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          if (msg.includes("429") && attempt < 2) {
-            await new Promise((r) => setTimeout(r, 3000 * (attempt + 1)));
-          } else throw err;
-        }
-      }
-      if (!completion) continue;
-
-      const raw = completion.choices[0]?.message?.content ?? "";
-
-      let parsed: { front: string; back: string }[];
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        const match = raw.match(/\[[\s\S]*\]/);
-        if (!match) { errors.push(`parse_fail: ${raw.slice(0, 100)}`); continue; }
-        parsed = JSON.parse(match[0]);
-      }
-
-      if (!Array.isArray(parsed)) continue;
-
-      for (const card of parsed) {
-        if (typeof card.front === "string" && typeof card.back === "string") {
-          allCards.push({
-            document_id: documentId,
-            chunk_id: chunk.id,
-            front: card.front.trim(),
-            back: card.back.trim(),
-          });
-        }
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error("[generate] chunk error:", msg);
-      errors.push(msg);
-    }
-
-    await new Promise((r) => setTimeout(r, DELAY_MS));
-  }
+  const results = await Promise.all(chunks.map((c) => generateCardsForChunk(c, documentId)));
+  const allCards = results.flat();
 
   if (allCards.length === 0) {
-    console.error("[generate] no cards produced. errors:", JSON.stringify(errors));
-    return NextResponse.json({ error: "Failed to generate any cards", debug: errors }, { status: 500 });
+    return NextResponse.json({ error: "Failed to generate any cards" }, { status: 500 });
   }
 
   const { data: savedCards, error: saveError } = await supabase
