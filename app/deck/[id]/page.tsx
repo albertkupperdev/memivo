@@ -55,6 +55,12 @@ export default function DeckPage() {
   const [confirmDeleteCardId, setConfirmDeleteCardId] = useState<string | null>(null);
   const [deletingCardId, setDeletingCardId] = useState<string | null>(null);
 
+  // New card
+  const [addingCard, setAddingCard] = useState(false);
+  const [newFront, setNewFront] = useState("");
+  const [newBack, setNewBack] = useState("");
+  const [creatingCard, setCreatingCard] = useState(false);
+
   // Deck rename
   const [renamingDeck, setRenamingDeck] = useState(false);
   const [renameTitle, setRenameTitle] = useState("");
@@ -189,6 +195,24 @@ export default function DeckPage() {
       setRenamingDeck(false);
     }
     setSavingRename(false);
+  }
+
+  async function createCard(andAnother = false) {
+    if (!newFront.trim() || !newBack.trim()) return;
+    setCreatingCard(true);
+    const res = await fetch("/api/cards", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentId: id, front: newFront, back: newBack }),
+    });
+    if (res.ok) {
+      const card = await res.json();
+      setCards((prev) => [...prev, card]);
+      setNewFront("");
+      setNewBack("");
+      if (!andAnother) setAddingCard(false);
+    }
+    setCreatingCard(false);
   }
 
   if (error) {
@@ -343,8 +367,70 @@ export default function DeckPage() {
         <div>
           <div className="flex items-baseline justify-between mb-6">
             <h2 className="font-serif text-[28px] leading-tight text-[var(--ink)]">All cards</h2>
-            <Eyebrow>{generating ? "Generating…" : `${cards.length} total`}</Eyebrow>
+            <div className="flex items-center gap-4">
+              <Eyebrow>{generating ? "Generating…" : `${cards.length} total`}</Eyebrow>
+              {!generating && !addingCard && (
+                <button
+                  onClick={() => setAddingCard(true)}
+                  className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
+                  style={{ color: "var(--accent-deep)" }}
+                >
+                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 5v14"/><path d="M5 12h14"/>
+                  </svg>
+                  New card
+                </button>
+              )}
+            </div>
           </div>
+
+          {addingCard && (
+            <div className="mb-6 p-6 rounded-2xl" style={{ border: "1px solid var(--accent-tint)", background: "var(--accent-bg)" }}>
+              <Eyebrow style={{ color: "var(--accent-deep)" }}>New card</Eyebrow>
+              <textarea
+                value={newFront}
+                onChange={(e) => setNewFront(e.target.value)}
+                rows={2}
+                placeholder="Front — question"
+                className="mt-3 w-full font-serif text-[18px] leading-[1.3] text-[var(--ink)] bg-transparent outline-none border-b resize-none"
+                style={{ borderColor: "var(--accent-tint)" }}
+                autoFocus
+              />
+              <textarea
+                value={newBack}
+                onChange={(e) => setNewBack(e.target.value)}
+                rows={3}
+                placeholder="Back — answer"
+                className="mt-4 w-full text-[14.5px] leading-relaxed bg-transparent outline-none border-b resize-none"
+                style={{ color: "var(--ink-soft)", borderColor: "var(--accent-tint)" }}
+              />
+              <div className="mt-4 flex gap-2 flex-wrap">
+                <button
+                  onClick={() => createCard(false)}
+                  disabled={creatingCard || !newFront.trim() || !newBack.trim()}
+                  className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-50"
+                  style={{ background: "var(--ink)" }}
+                >
+                  {creatingCard ? "Adding…" : "Add card"}
+                </button>
+                <button
+                  onClick={() => createCard(true)}
+                  disabled={creatingCard || !newFront.trim() || !newBack.trim()}
+                  className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+                  style={{ background: "var(--accent-tint)", color: "var(--accent-deep)" }}
+                >
+                  Save & add another
+                </button>
+                <button
+                  onClick={() => { setAddingCard(false); setNewFront(""); setNewBack(""); }}
+                  className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium transition-colors"
+                  style={{ color: "var(--muted)" }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
 
           {generating ? (
             <div className="bg-white rounded-2xl p-12 text-center" style={{ border: "1px solid var(--border)" }}>

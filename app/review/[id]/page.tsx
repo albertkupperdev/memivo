@@ -13,15 +13,26 @@ function Eyebrow({ children, className = "", style = {} }: { children: React.Rea
   );
 }
 
-const RATE_STYLES: Record<ReviewRating, { bg: string; color: string; hoverBg: string; border: string }> = {
-  again: { bg: "var(--complement-bg)",   color: "var(--complement-deep)", hoverBg: "var(--complement-bg-hover)", border: "var(--complement-border)" },
-  hard:  { bg: "#fbf2dc",                color: "#8a6624",                hoverBg: "#f5e6bf",                   border: "#f0e3b8" },
-  good:  { bg: "var(--accent-bg)",       color: "var(--accent-deep)",     hoverBg: "var(--accent-tint)",         border: "var(--accent-tint)" },
-  easy:  { bg: "var(--bg-2)",            color: "var(--ink)",             hoverBg: "var(--bg-2-hover)",          border: "var(--border-strong)" },
+function KbdKey({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      className="inline-flex items-center justify-center w-5 h-5 rounded text-[10px] font-mono font-bold leading-none"
+      style={{ background: "rgba(0,0,0,0.10)", color: "inherit" }}
+    >
+      {children}
+    </span>
+  );
+}
+
+const RATE_STYLES: Record<ReviewRating, { bg: string; color: string; border: string }> = {
+  again: { bg: "var(--complement-bg)",   color: "var(--complement-deep)", border: "var(--complement-border)" },
+  hard:  { bg: "#fbf2dc",                color: "#8a6624",                border: "#f0e3b8" },
+  good:  { bg: "var(--accent-bg)",       color: "var(--accent-deep)",     border: "var(--accent-tint)" },
+  easy:  { bg: "var(--bg-2)",            color: "var(--ink)",             border: "var(--border-strong)" },
 };
 
-const RATE_SUB: Record<ReviewRating, string> = {
-  again: "< 1m", hard: "6m", good: "10m", easy: "4d",
+const RATE_TIME: Record<ReviewRating, string> = {
+  again: "< 1 min", hard: "6 min", good: "10 min", easy: "4 days",
 };
 
 export default function ReviewPage() {
@@ -33,6 +44,7 @@ export default function ReviewPage() {
   const [idx, setIdx] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [showSource, setShowSource] = useState(false);
+  const [showProgress, setShowProgress] = useState(true);
   const [ratings, setRatings] = useState<ReviewRating[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -164,32 +176,54 @@ export default function ReviewPage() {
             </svg>
             Exit
           </button>
-          <Eyebrow>
-            <span className="tabular-nums" style={{ color: "var(--ink)" }}>{String(idx + 1).padStart(2, "0")}</span>
-            <span className="mx-1.5" style={{ color: "var(--border-strong)" }}>/</span>
-            <span className="tabular-nums">{String(total).padStart(2, "0")}</span>
-          </Eyebrow>
+
+          <div className="flex items-center gap-3">
+            {showProgress && (
+              <Eyebrow>
+                <span className="tabular-nums" style={{ color: "var(--ink)" }}>{String(idx + 1).padStart(2, "0")}</span>
+                <span className="mx-1.5" style={{ color: "var(--border-strong)" }}>/</span>
+                <span className="tabular-nums">{String(total).padStart(2, "0")}</span>
+              </Eyebrow>
+            )}
+            <button
+              onClick={() => setShowProgress((v) => !v)}
+              className="transition-opacity"
+              style={{ color: "var(--muted)", opacity: showProgress ? 1 : 0.4 }}
+              title={showProgress ? "Hide progress" : "Show progress"}
+            >
+              {showProgress ? (
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/>
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Segmented progress bar */}
-        <div className="flex gap-1">
-          {cards.map((_, i) => (
-            <div
-              key={i}
-              className="h-1 flex-1 rounded-full transition-colors"
-              style={{
-                background: i < idx ? "var(--accent)" : i === idx ? "var(--ink)" : "var(--border-strong)",
-              }}
-            />
-          ))}
-        </div>
+        {showProgress && (
+          <div className="flex gap-1">
+            {cards.map((_, i) => (
+              <div
+                key={i}
+                className="h-1 flex-1 rounded-full transition-colors"
+                style={{
+                  background: i < idx ? "var(--accent)" : i === idx ? "var(--ink)" : "var(--border-strong)",
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Card */}
       <div className="flex-1 w-full flex items-start justify-center px-6 pb-10">
         <div className="w-full max-w-3xl">
           <div className="bg-white rounded-3xl min-h-[360px] p-8 sm:p-12 flex flex-col relative overflow-hidden" style={{ border: "1px solid var(--border)" }}>
-            {/* Corner index */}
             <span className="absolute top-6 right-7 font-mono text-[11px] uppercase tracking-[0.14em] tabular-nums" style={{ color: "var(--border-strong)" }}>
               {String(idx + 1).padStart(2, "0")} · {String(total).padStart(2, "0")}
             </span>
@@ -239,9 +273,7 @@ export default function ReviewPage() {
                 style={{ background: "var(--ink)", color: "var(--bg)" }}
               >
                 Show answer
-                <span className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--soft)" }}>
-                  Space
-                </span>
+                <KbdKey>␣</KbdKey>
               </button>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -252,12 +284,15 @@ export default function ReviewPage() {
                       key={r}
                       onClick={() => rate(r)}
                       disabled={submitting}
-                      className="inline-flex flex-col items-center justify-center px-3 py-4 rounded-2xl border transition-colors disabled:opacity-50 capitalize"
+                      className="inline-flex flex-col items-start px-4 py-3.5 rounded-2xl border transition-colors disabled:opacity-50"
                       style={{ background: s.bg, color: s.color, borderColor: s.border }}
                     >
-                      <span className="text-[15px] font-semibold">{r}</span>
-                      <span className="mt-1 font-mono text-[10px] uppercase tracking-[0.14em] opacity-70">
-                        {i + 1} · {RATE_SUB[r]}
+                      <div className="flex items-center justify-between w-full">
+                        <span className="text-[15px] font-semibold capitalize">{r}</span>
+                        <KbdKey>{i + 1}</KbdKey>
+                      </div>
+                      <span className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.14em] opacity-60">
+                        {RATE_TIME[r]}
                       </span>
                     </button>
                   );
