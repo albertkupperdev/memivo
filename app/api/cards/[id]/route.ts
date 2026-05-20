@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+function getOwnerId(documents: unknown): string | null {
+  if (!documents) return null;
+  const doc = Array.isArray(documents) ? documents[0] : documents;
+  return (doc as { user_id: string } | null)?.user_id ?? null;
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -21,8 +27,7 @@ export async function PATCH(
     .eq("id", id)
     .single();
 
-  const doc = Array.isArray(card.documents) ? card.documents[0] : card.documents;
-  if (!card || (doc as { user_id: string } | null)?.user_id !== user.id) {
+  if (!card || getOwnerId(card.documents) !== user.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -53,8 +58,7 @@ export async function DELETE(
     .eq("id", id)
     .single();
 
-  const doc2 = Array.isArray(card.documents) ? card.documents[0] : card.documents;
-  if (!card || (doc2 as { user_id: string } | null)?.user_id !== user.id) {
+  if (!card || getOwnerId(card.documents) !== user.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
