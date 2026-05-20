@@ -17,9 +17,9 @@ interface Props {
   folders: Folder[];
 }
 
-function Eyebrow({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+function Eyebrow({ children, className = "", style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
-    <span className={`font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted)] ${className}`}>
+    <span className={`font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted)] ${className}`} style={style}>
       {children}
     </span>
   );
