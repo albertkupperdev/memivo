@@ -225,19 +225,9 @@ export default function DeckPage() {
 
   return (
     <div className="flex-1 w-full">
-      {/* Sticky hero */}
-      <div className="sticky top-0 z-20 w-full" style={{ background: "var(--bg)", borderBottom: "1px solid var(--border)" }}>
-        <div className="max-w-2xl mx-auto px-6 pt-10 pb-6">
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center gap-2 mb-6 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
-          style={{ color: "var(--muted)" }}
-        >
-          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 12H5"/><path d="m12 5-7 7 7 7"/>
-          </svg>
-          All decks
-        </Link>
+      {/* Sticky hero — offset below navbar (~47px) */}
+      <div className="sticky top-[47px] z-20 w-full" style={{ background: "var(--bg)", borderBottom: "1px solid var(--border)" }}>
+        <div className="max-w-2xl mx-auto px-6 pt-4 pb-4">
 
         {/* Hero */}
         <div>
@@ -279,8 +269,8 @@ export default function DeckPage() {
               </div>
             </div>
           ) : (
-            <div className="group mt-3 flex items-start gap-3">
-              <h1 className="font-serif text-[44px] leading-[1.05] text-[var(--ink)]">
+            <div className="group mt-1 flex items-start gap-3">
+              <h1 className="font-serif text-[30px] leading-[1.1] text-[var(--ink)]">
                 {document?.title ?? "Loading…"}
               </h1>
               {document && (
@@ -297,17 +287,17 @@ export default function DeckPage() {
           )}
 
           {/* Stat strip */}
-          <div className="mt-7 grid grid-cols-3 divide-x" style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
-            <StatCell label="Total" value={cards.length} />
-            <StatCell label="Due now" value={dueCount} accent={dueCount > 0} />
-            <StatCell label="Source" value={document?.source_type?.toUpperCase() ?? "—"} />
+          <div className="mt-3 grid grid-cols-3 divide-x" style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
+            <StatCell label="Total" value={cards.length} compact />
+            <StatCell label="Due now" value={dueCount} accent={dueCount > 0} compact />
+            <StatCell label="Source" value={document?.source_type?.toUpperCase() ?? "—"} compact />
           </div>
 
-          <div className="mt-7 flex flex-col sm:flex-row gap-3">
+          <div className="mt-4 flex flex-col sm:flex-row gap-2">
             <button
               onClick={() => router.push(`/review/${id}`)}
               disabled={generating || cards.length === 0}
-              className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3.5 text-[15px] font-medium rounded-xl transition-colors group"
+              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-[14px] font-medium rounded-xl transition-colors group"
               style={{
                 background: generating || cards.length === 0 ? "var(--border-strong)" : "var(--ink)",
                 color: generating || cards.length === 0 ? "var(--soft)" : "var(--bg)",
@@ -329,7 +319,7 @@ export default function DeckPage() {
             {!confirming && (
               <button
                 onClick={() => setConfirming(true)}
-                className="inline-flex items-center justify-center gap-2 px-4 py-3.5 text-sm font-medium rounded-xl transition-colors"
+                className="inline-flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors"
                 style={{ color: "var(--muted)" }}
               >
                 <TrashIcon />
@@ -367,8 +357,18 @@ export default function DeckPage() {
         </div>
       </div>
 
-      {/* Scrollable card list */}
-      <div className="max-w-2xl mx-auto px-6 py-10">
+      {/* Scrollable content */}
+      <div className="max-w-2xl mx-auto px-6 pt-8 pb-10">
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-2 mb-8 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
+          style={{ color: "var(--muted)" }}
+        >
+          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5"/><path d="m12 5-7 7 7 7"/>
+          </svg>
+          All decks
+        </Link>
         <div>
           <div className="flex items-baseline justify-between mb-6">
             <h2 className="font-serif text-[28px] leading-tight text-[var(--ink)]">All cards</h2>
@@ -631,13 +631,13 @@ export default function DeckPage() {
   );
 }
 
-function StatCell({ label, value, accent }: { label: string; value: number | string; accent?: boolean }) {
+function StatCell({ label, value, accent, compact }: { label: string; value: number | string; accent?: boolean; compact?: boolean }) {
   return (
-    <div className="px-1 py-5 first:pl-0">
+    <div className={`px-1 first:pl-0 ${compact ? "py-2.5" : "py-5"}`}>
       <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">{label}</span>
-      <div className="mt-2 flex items-baseline gap-2">
-        <span className="font-serif text-[40px] leading-none text-[var(--ink)]">{value}</span>
-        {accent && <span className="w-2 h-2 rounded-full -translate-y-3" style={{ background: "var(--complement)" }} />}
+      <div className="mt-1 flex items-baseline gap-2">
+        <span className={`font-serif leading-none text-[var(--ink)] ${compact ? "text-[28px]" : "text-[40px]"}`}>{value}</span>
+        {accent && <span className={`w-2 h-2 rounded-full ${compact ? "-translate-y-2" : "-translate-y-3"}`} style={{ background: "var(--complement)" }} />}
       </div>
     </div>
   );
