@@ -219,7 +219,11 @@ export default function DeckPage() {
       setCards((prev) => [...prev, card]);
       setNewFront("");
       setNewBack("");
-      if (!andAnother) setAddingCard(false);
+      if (!andAnother) {
+        setAddingCard(false);
+      } else {
+        setTimeout(() => document.getElementById("new-card-front")?.focus(), 0);
+      }
     }
     setCreatingCard(false);
   }

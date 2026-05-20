@@ -91,6 +91,7 @@ export default function ReviewPage() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!loaded || idx >= cards.length) return;
+      if (e.key === "Escape") { router.push(`/deck/${id}`); return; }
       if (e.key === " " || e.key === "Enter") { e.preventDefault(); if (!revealed) setRevealed(true); }
       if (revealed) {
         if (e.key === "1") rate("again");
@@ -273,7 +274,7 @@ export default function ReviewPage() {
                 style={{ background: "var(--ink)", color: "var(--bg)" }}
               >
                 Show answer
-                <KbdKey>␣</KbdKey>
+                <span className="text-[22px] leading-none opacity-60">␣</span>
               </button>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
