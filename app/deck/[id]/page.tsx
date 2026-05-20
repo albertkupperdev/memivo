@@ -65,7 +65,10 @@ export default function DeckPage() {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 80);
+    const handler = () => {
+      const y = window.scrollY;
+      setScrolled((prev) => (prev ? y > 40 : y > 100));
+    };
     window.addEventListener("scroll", handler, { passive: true });
     return () => window.removeEventListener("scroll", handler);
   }, []);
