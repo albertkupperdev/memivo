@@ -18,6 +18,8 @@ function isBoilerplate(text: string): boolean {
     lower.includes("fernstudienzentrum") ||
     lower.includes("studienteilnehmer") ||
     lower.includes("wir wünschen ihnen") ||
+    lower.includes("vorbemerkungen") ||
+    lower.includes("schlusswort") ||
     (text.match(/\.{5,}/g) ?? []).length >= 3
   );
 }

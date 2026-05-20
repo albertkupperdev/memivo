@@ -12,6 +12,8 @@ Do NOT create cards about: the structure or outline of the book/course, what top
 
 Do NOT create cards that ask for specific numerical answers to word problems from the text (e.g. "How much money does Larissa get?", "How many legs do the animals have?"). These test recall of a specific exercise, not a transferable concept. Instead, extract the general rule, method, or concept the example is illustrating.
 
+Do NOT create cards based on anecdotes, stories, or narrative examples used to illustrate a point (e.g. "What happened to the person in the example?", "What did the writer's colleague say?"). Instead, extract the underlying concept, rule, or principle the example was demonstrating.
+
 Return ONLY a JSON array — no text before or after:
 [{"front": "...", "back": "..."}]
 
