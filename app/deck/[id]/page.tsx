@@ -225,10 +225,12 @@ export default function DeckPage() {
 
   return (
     <div className="flex-1 w-full">
-      <div className="max-w-2xl mx-auto px-6 py-16">
+      {/* Sticky hero */}
+      <div className="sticky top-0 z-20 w-full" style={{ background: "var(--bg)", borderBottom: "1px solid var(--border)" }}>
+        <div className="max-w-2xl mx-auto px-6 pt-10 pb-6">
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-2 mb-10 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
+          className="inline-flex items-center gap-2 mb-6 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
           style={{ color: "var(--muted)" }}
         >
           <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -238,7 +240,7 @@ export default function DeckPage() {
         </Link>
 
         {/* Hero */}
-        <div className="mb-12">
+        <div>
           <Eyebrow>
             {document?.source_type === "pdf" ? "PDF source" : "Web source"}
             {document?.source_url && ` · ${document.source_url}`}
@@ -362,8 +364,11 @@ export default function DeckPage() {
             </div>
           )}
         </div>
+        </div>
+      </div>
 
-        {/* Card list */}
+      {/* Scrollable card list */}
+      <div className="max-w-2xl mx-auto px-6 py-10">
         <div>
           <div className="flex items-baseline justify-between mb-6">
             <h2 className="font-serif text-[28px] leading-tight text-[var(--ink)]">All cards</h2>
