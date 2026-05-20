@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -11,6 +11,22 @@ function Eyebrow({ children, className = "", style }: { children: React.ReactNod
     <span className={`font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted)] ${className}`} style={style}>
       {children}
     </span>
+  );
+}
+
+function PencilIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={`w-3.5 h-3.5 ${className}`} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+    </svg>
+  );
+}
+
+function TrashIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={`w-3.5 h-3.5 ${className}`} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+    </svg>
   );
 }
 
@@ -29,6 +45,20 @@ export default function DeckPage() {
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Card editing
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [editFront, setEditFront] = useState("");
+  const [editBack, setEditBack] = useState("");
+  const [savingCard, setSavingCard] = useState(false);
+  const [confirmDeleteCardId, setConfirmDeleteCardId] = useState<string | null>(null);
+  const [deletingCardId, setDeletingCardId] = useState<string | null>(null);
+
+  // Deck rename
+  const [renamingDeck, setRenamingDeck] = useState(false);
+  const [renameTitle, setRenameTitle] = useState("");
+  const [savingRename, setSavingRename] = useState(false);
+  const renameTitleRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function load() {
@@ -101,6 +131,61 @@ export default function DeckPage() {
     else { setDeleting(false); setConfirming(false); }
   }
 
+  function startEditCard(card: Card) {
+    setConfirmDeleteCardId(null);
+    setEditingCardId(card.id);
+    setEditFront(card.front);
+    setEditBack(card.back);
+  }
+
+  async function saveCard() {
+    if (!editingCardId) return;
+    setSavingCard(true);
+    const res = await fetch(`/api/cards/${editingCardId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ front: editFront, back: editBack }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setCards(cards.map((c) => (c.id === editingCardId ? updated : c)));
+      setEditingCardId(null);
+    }
+    setSavingCard(false);
+  }
+
+  async function deleteCard(cardId: string) {
+    setDeletingCardId(cardId);
+    const res = await fetch(`/api/cards/${cardId}`, { method: "DELETE" });
+    if (res.ok) {
+      setCards((prev) => prev.filter((c) => c.id !== cardId));
+    }
+    setDeletingCardId(null);
+    setConfirmDeleteCardId(null);
+  }
+
+  function startRename() {
+    setRenameTitle(document?.title ?? "");
+    setRenamingDeck(true);
+    setTimeout(() => renameTitleRef.current?.select(), 0);
+  }
+
+  async function saveRename() {
+    if (!renameTitle.trim()) return;
+    setSavingRename(true);
+    const res = await fetch(`/api/documents/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: renameTitle }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setDocument(updated);
+      setRenamingDeck(false);
+    }
+    setSavingRename(false);
+  }
+
   if (error) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -129,9 +214,56 @@ export default function DeckPage() {
             {document?.source_type === "pdf" ? "PDF source" : "Web source"}
             {document?.source_url && ` · ${document.source_url}`}
           </Eyebrow>
-          <h1 className="mt-3 font-serif text-[44px] leading-[1.05] text-[var(--ink)]">
-            {document?.title ?? "Loading…"}
-          </h1>
+
+          {renamingDeck ? (
+            <div className="mt-3">
+              <input
+                ref={renameTitleRef}
+                value={renameTitle}
+                onChange={(e) => setRenameTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveRename();
+                  if (e.key === "Escape") setRenamingDeck(false);
+                }}
+                className="w-full font-serif text-[44px] leading-[1.05] text-[var(--ink)] bg-transparent outline-none border-b-2"
+                style={{ borderColor: "var(--accent)" }}
+                autoFocus
+              />
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={saveRename}
+                  disabled={savingRename || !renameTitle.trim()}
+                  className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-50"
+                  style={{ background: "var(--ink)" }}
+                >
+                  {savingRename ? "Saving…" : "Save"}
+                </button>
+                <button
+                  onClick={() => setRenamingDeck(false)}
+                  className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium transition-colors"
+                  style={{ color: "var(--muted)" }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="group mt-3 flex items-start gap-3">
+              <h1 className="font-serif text-[44px] leading-[1.05] text-[var(--ink)]">
+                {document?.title ?? "Loading…"}
+              </h1>
+              {document && (
+                <button
+                  onClick={startRename}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity mt-4 shrink-0"
+                  style={{ color: "var(--muted)" }}
+                  title="Rename deck"
+                >
+                  <PencilIcon />
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Stat strip */}
           <div className="mt-7 grid grid-cols-3 divide-x" style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
@@ -169,9 +301,7 @@ export default function DeckPage() {
                 className="inline-flex items-center justify-center gap-2 px-4 py-3.5 text-sm font-medium rounded-xl transition-colors"
                 style={{ color: "var(--muted)" }}
               >
-                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                </svg>
+                <TrashIcon />
                 Delete
               </button>
             )}
@@ -262,38 +392,134 @@ export default function DeckPage() {
           ) : (
             <ol className="flex flex-col">
               {cards.map((card, i) => (
-                <li key={card.id} className="py-7" style={{ borderTop: "1px solid var(--border)", ...(i === cards.length - 1 ? { borderBottom: "1px solid var(--border)" } : {}) }}>
-                  <div className="flex items-start gap-6">
-                    <span className="flex-shrink-0 font-mono text-[11px] uppercase tracking-[0.14em] tabular-nums mt-1.5 w-8" style={{ color: "var(--soft)" }}>
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-serif text-[20px] leading-[1.3] text-[var(--ink)]">{card.front}</p>
-                      <p className="mt-3 text-[14.5px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
-
-                      {chunkMap.has(card.chunk_id) && (
-                        <div className="mt-4">
+                <li
+                  key={card.id}
+                  className="group py-7"
+                  style={{ borderTop: "1px solid var(--border)", ...(i === cards.length - 1 ? { borderBottom: "1px solid var(--border)" } : {}) }}
+                >
+                  {editingCardId === card.id ? (
+                    <div className="flex items-start gap-6">
+                      <span className="flex-shrink-0 font-mono text-[11px] uppercase tracking-[0.14em] tabular-nums mt-1.5 w-8" style={{ color: "var(--soft)" }}>
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <textarea
+                          value={editFront}
+                          onChange={(e) => setEditFront(e.target.value)}
+                          rows={2}
+                          className="w-full font-serif text-[20px] leading-[1.3] text-[var(--ink)] bg-transparent outline-none border-b resize-none"
+                          style={{ borderColor: "var(--border-strong)" }}
+                          placeholder="Front"
+                        />
+                        <textarea
+                          value={editBack}
+                          onChange={(e) => setEditBack(e.target.value)}
+                          rows={3}
+                          className="w-full mt-3 text-[14.5px] leading-relaxed bg-transparent outline-none border-b resize-none"
+                          style={{ color: "var(--ink-soft)", borderColor: "var(--border-strong)" }}
+                          placeholder="Back"
+                        />
+                        <div className="mt-4 flex gap-2">
                           <button
-                            onClick={() => setExpandedSource(expandedSource === card.id ? null : card.id)}
-                            className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors"
-                            style={{ color: expandedSource === card.id ? "var(--accent-deep)" : "var(--soft)" }}
+                            onClick={saveCard}
+                            disabled={savingCard || !editFront.trim() || !editBack.trim()}
+                            className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-50"
+                            style={{ background: "var(--ink)" }}
                           >
-                            <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d={expandedSource === card.id ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} />
-                            </svg>
-                            Source
+                            {savingCard ? "Saving…" : "Save"}
                           </button>
-                          {expandedSource === card.id && (
-                            <div className="mt-3 pl-3" style={{ borderLeft: "2px solid var(--accent)" }}>
-                              <p className="text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>
-                                {chunkMap.get(card.chunk_id)}
-                              </p>
-                            </div>
-                          )}
+                          <button
+                            onClick={() => setEditingCardId(null)}
+                            className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium transition-colors"
+                            style={{ color: "var(--muted)" }}
+                          >
+                            Cancel
+                          </button>
                         </div>
-                      )}
+                      </div>
                     </div>
-                  </div>
+                  ) : confirmDeleteCardId === card.id ? (
+                    <div className="flex items-start gap-6">
+                      <span className="flex-shrink-0 font-mono text-[11px] uppercase tracking-[0.14em] tabular-nums mt-1.5 w-8" style={{ color: "var(--soft)" }}>
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-serif text-[20px] leading-[1.3]" style={{ color: "var(--muted)" }}>{card.front}</p>
+                        <div className="mt-4 flex items-center gap-3">
+                          <span className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--complement-deep)" }}>
+                            Delete this card?
+                          </span>
+                          <button
+                            onClick={() => deleteCard(card.id)}
+                            disabled={deletingCardId === card.id}
+                            className="inline-flex items-center justify-center px-3 py-1 text-xs font-medium rounded-lg text-white transition-colors disabled:opacity-50"
+                            style={{ background: "var(--complement)" }}
+                          >
+                            {deletingCardId === card.id ? "Deleting…" : "Delete"}
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteCardId(null)}
+                            className="inline-flex items-center justify-center px-3 py-1 text-xs font-medium transition-colors"
+                            style={{ color: "var(--muted)" }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-6">
+                      <span className="flex-shrink-0 font-mono text-[11px] uppercase tracking-[0.14em] tabular-nums mt-1.5 w-8" style={{ color: "var(--soft)" }}>
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-4">
+                          <p className="font-serif text-[20px] leading-[1.3] text-[var(--ink)]">{card.front}</p>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5">
+                            <button
+                              onClick={() => startEditCard(card)}
+                              className="p-1.5 rounded-lg transition-colors hover:bg-[var(--bg-2)]"
+                              style={{ color: "var(--muted)" }}
+                              title="Edit card"
+                            >
+                              <PencilIcon />
+                            </button>
+                            <button
+                              onClick={() => { setEditingCardId(null); setConfirmDeleteCardId(card.id); }}
+                              className="p-1.5 rounded-lg transition-colors hover:bg-[var(--bg-2)]"
+                              style={{ color: "var(--muted)" }}
+                              title="Delete card"
+                            >
+                              <TrashIcon />
+                            </button>
+                          </div>
+                        </div>
+                        <p className="mt-3 text-[14.5px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
+
+                        {chunkMap.has(card.chunk_id) && (
+                          <div className="mt-4">
+                            <button
+                              onClick={() => setExpandedSource(expandedSource === card.id ? null : card.id)}
+                              className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors"
+                              style={{ color: expandedSource === card.id ? "var(--accent-deep)" : "var(--soft)" }}
+                            >
+                              <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d={expandedSource === card.id ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} />
+                              </svg>
+                              Source
+                            </button>
+                            {expandedSource === card.id && (
+                              <div className="mt-3 pl-3" style={{ borderLeft: "2px solid var(--accent)" }}>
+                                <p className="text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>
+                                  {chunkMap.get(card.chunk_id)}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </li>
               ))}
             </ol>
