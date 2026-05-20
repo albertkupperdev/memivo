@@ -51,6 +51,7 @@ export default function DeckPage() {
   const [editFront, setEditFront] = useState("");
   const [editBack, setEditBack] = useState("");
   const [savingCard, setSavingCard] = useState(false);
+  const [saveCardError, setSaveCardError] = useState<string | null>(null);
   const [confirmDeleteCardId, setConfirmDeleteCardId] = useState<string | null>(null);
   const [deletingCardId, setDeletingCardId] = useState<string | null>(null);
 
@@ -141,6 +142,7 @@ export default function DeckPage() {
   async function saveCard() {
     if (!editingCardId) return;
     setSavingCard(true);
+    setSaveCardError(null);
     const res = await fetch(`/api/cards/${editingCardId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -150,6 +152,9 @@ export default function DeckPage() {
       const updated = await res.json();
       setCards(cards.map((c) => (c.id === editingCardId ? updated : c)));
       setEditingCardId(null);
+    } else {
+      const body = await res.json().catch(() => ({}));
+      setSaveCardError(body.error ?? "Failed to save. Try again.");
     }
     setSavingCard(false);
   }
@@ -419,7 +424,7 @@ export default function DeckPage() {
                           style={{ color: "var(--ink-soft)", borderColor: "var(--border-strong)" }}
                           placeholder="Back"
                         />
-                        <div className="mt-4 flex gap-2">
+                        <div className="mt-4 flex items-center gap-2 flex-wrap">
                           <button
                             onClick={saveCard}
                             disabled={savingCard || !editFront.trim() || !editBack.trim()}
@@ -429,12 +434,17 @@ export default function DeckPage() {
                             {savingCard ? "Saving…" : "Save"}
                           </button>
                           <button
-                            onClick={() => setEditingCardId(null)}
+                            onClick={() => { setEditingCardId(null); setSaveCardError(null); }}
                             className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium transition-colors"
                             style={{ color: "var(--muted)" }}
                           >
                             Cancel
                           </button>
+                          {saveCardError && (
+                            <span className="font-mono text-[11px]" style={{ color: "var(--complement-deep)" }}>
+                              {saveCardError}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>

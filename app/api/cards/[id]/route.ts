@@ -31,14 +31,20 @@ export async function PATCH(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const { data, error } = await supabase
+  const { error: updateError } = await supabase
     .from("cards")
     .update({ front: front.trim(), back: back.trim() })
+    .eq("id", id);
+
+  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+
+  const { data, error: fetchError } = await supabase
+    .from("cards")
+    .select("*")
     .eq("id", id)
-    .select()
     .single();
 
-  if (error) return NextResponse.json({ error: "Failed to update card" }, { status: 500 });
+  if (fetchError || !data) return NextResponse.json({ error: "Failed to fetch updated card" }, { status: 500 });
   return NextResponse.json(data);
 }
 
