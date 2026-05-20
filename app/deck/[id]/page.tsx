@@ -275,7 +275,7 @@ export default function DeckPage() {
               </div>
             </div>
           ) : (
-            <div className={`group flex items-center gap-3 ${scrolled ? "mt-0" : "mt-2"}`}>
+            <div className={`group flex items-baseline gap-3 ${scrolled ? "mt-0" : "mt-2"}`}>
               <h1 className={`font-serif leading-tight text-[var(--ink)] transition-all duration-300 ${scrolled ? "text-[22px]" : "text-[40px]"}`}>
                 {document?.title ?? "Loading…"}
               </h1>
