@@ -141,6 +141,11 @@ export default function DeckPage() {
   const [openCardPlaylistId, setOpenCardPlaylistId] = useState<string | null>(null);
   const [confirmDeletePlaylistId, setConfirmDeletePlaylistId] = useState<string | null>(null);
   const [expandedPlaylistId, setExpandedPlaylistId] = useState<string | null>(null);
+  const [addingCardToPlaylistId, setAddingCardToPlaylistId] = useState<string | null>(null);
+  const [playlistNewFront, setPlaylistNewFront] = useState("");
+  const [playlistNewBack, setPlaylistNewBack] = useState("");
+  const [playlistNewHint, setPlaylistNewHint] = useState("");
+  const [creatingPlaylistCard, setCreatingPlaylistCard] = useState(false);
 
   // Scroll-aware header
   const [scrolled, setScrolled] = useState(false);
@@ -463,6 +468,38 @@ export default function DeckPage() {
     setBulkPlaylistId(null);
     setSelectedIds(new Set());
     setSelectionMode(false);
+  }
+
+  async function createCardInPlaylist(plId: string, andAnother = false) {
+    if (!playlistNewFront.trim() || !playlistNewBack.trim()) return;
+    setCreatingPlaylistCard(true);
+    const res = await fetch("/api/cards", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentId: id, front: playlistNewFront, back: playlistNewBack, hint: playlistNewHint || null }),
+    });
+    if (res.ok) {
+      const card = await res.json();
+      setCards(prev => [...prev, card]);
+      await fetch(`/api/playlists/${plId}/cards`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cardId: card.id }),
+      });
+      setPlaylistCardIds(prev => {
+        const m = new Map(prev);
+        const s = new Set(m.get(plId) ?? []);
+        s.add(card.id);
+        m.set(plId, s);
+        return m;
+      });
+      setPlaylistNewFront("");
+      setPlaylistNewBack("");
+      setPlaylistNewHint("");
+      if (!andAnother) setAddingCardToPlaylistId(null);
+      else setTimeout(() => window.document.getElementById(`playlist-new-front-${plId}`)?.focus(), 50);
+    }
+    setCreatingPlaylistCard(false);
   }
 
   async function createPlaylist() {
@@ -882,7 +919,7 @@ export default function DeckPage() {
                     )}
 
                     {/* Expanded card list */}
-                    {expandedPlaylistId === pl.id && count > 0 && (
+                    {expandedPlaylistId === pl.id && (
                       <div className="mt-3 flex flex-col" style={{ borderTop: "1px solid var(--border)" }}>
                         {cards
                           .filter(c => playlistCardIds.get(pl.id)?.has(c.id))
@@ -898,6 +935,63 @@ export default function DeckPage() {
                               </div>
                             </div>
                           ))}
+
+                        {/* New card form inside playlist */}
+                        {addingCardToPlaylistId === pl.id ? (
+                          <div className="pt-4 pb-2">
+                            <textarea
+                              id={`playlist-new-front-${pl.id}`}
+                              value={playlistNewFront}
+                              onChange={e => setPlaylistNewFront(e.target.value)}
+                              rows={2}
+                              placeholder="Front — question"
+                              className="w-full font-serif text-[16px] leading-snug bg-transparent outline-none border-b resize-none"
+                              style={{ borderColor: "var(--border-strong)", color: "var(--ink)" }}
+                              autoFocus
+                            />
+                            <textarea
+                              value={playlistNewBack}
+                              onChange={e => setPlaylistNewBack(e.target.value)}
+                              rows={2}
+                              placeholder="Back — answer"
+                              className="mt-3 w-full text-[13px] leading-relaxed bg-transparent outline-none border-b resize-none"
+                              style={{ borderColor: "var(--border-strong)", color: "var(--ink-soft)" }}
+                            />
+                            <textarea
+                              value={playlistNewHint}
+                              onChange={e => setPlaylistNewHint(e.target.value)}
+                              rows={1}
+                              placeholder="Hint (optional)"
+                              className="mt-2 w-full text-[12px] bg-transparent outline-none border-b resize-none"
+                              style={{ borderColor: "var(--border-strong)", color: "var(--muted)" }}
+                            />
+                            <div className="mt-3 flex gap-2 flex-wrap">
+                              <button onClick={() => createCardInPlaylist(pl.id, false)} disabled={creatingPlaylistCard || !playlistNewFront.trim() || !playlistNewBack.trim()}
+                                className="px-3 py-1.5 text-sm font-medium rounded-lg text-white disabled:opacity-50" style={{ background: "var(--ink)" }}>
+                                {creatingPlaylistCard ? "Adding…" : "Add card"}
+                              </button>
+                              <button onClick={() => createCardInPlaylist(pl.id, true)} disabled={creatingPlaylistCard || !playlistNewFront.trim() || !playlistNewBack.trim()}
+                                className="px-3 py-1.5 text-sm font-medium rounded-lg disabled:opacity-50" style={{ background: "var(--accent-tint)", color: "var(--accent-deep)" }}>
+                                Save & add another
+                              </button>
+                              <button onClick={() => { setAddingCardToPlaylistId(null); setPlaylistNewFront(""); setPlaylistNewBack(""); setPlaylistNewHint(""); }}
+                                className="px-3 py-1.5 text-sm font-medium" style={{ color: "var(--muted)" }}>
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setAddingCardToPlaylistId(pl.id); setPlaylistNewFront(""); setPlaylistNewBack(""); setPlaylistNewHint(""); }}
+                            className="mt-3 inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
+                            style={{ color: "var(--accent-deep)" }}
+                          >
+                            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 5v14"/><path d="M5 12h14"/>
+                            </svg>
+                            New card
+                          </button>
+                        )}
                       </div>
                     )}
                     </div>
