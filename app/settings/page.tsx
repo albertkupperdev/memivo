@@ -155,6 +155,24 @@ export default function SettingsPage() {
               onChange={(v) => setSettings((s) => ({ ...s, interval_easy: v }))}
             />
 
+            {/* Type-in answer toggle */}
+            <div className="flex items-center justify-between py-5" style={{ borderBottom: "1px solid var(--border)" }}>
+              <div>
+                <p className="text-[15px] font-medium text-[var(--ink)]">Type-in answer</p>
+                <p className="mt-0.5 text-[13px]" style={{ color: "var(--muted)" }}>Show a text input during review — you can still skip with "Show answer"</p>
+              </div>
+              <button
+                onClick={() => setSettings((s) => ({ ...s, type_in_answer: !s.type_in_answer }))}
+                className="relative flex-shrink-0 w-11 h-6 rounded-full transition-colors ml-6"
+                style={{ background: settings.type_in_answer ? "var(--ink)" : "var(--border-strong)" }}
+              >
+                <span
+                  className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform"
+                  style={{ transform: settings.type_in_answer ? "translateX(20px)" : "translateX(0)" }}
+                />
+              </button>
+            </div>
+
             <div className="mt-8 flex items-center gap-4">
               <button
                 onClick={save}

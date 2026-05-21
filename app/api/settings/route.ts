@@ -19,10 +19,11 @@ export async function PUT(request: Request) {
   const body = await request.json();
   const settings = {
     user_id: user.id,
-    interval_again: Math.max(0.001, Number(body.interval_again) || DEFAULT_SETTINGS.interval_again),
-    interval_hard:  Math.max(0.001, Number(body.interval_hard)  || DEFAULT_SETTINGS.interval_hard),
-    interval_good:  Math.max(0.001, Number(body.interval_good)  || DEFAULT_SETTINGS.interval_good),
-    interval_easy:  Math.max(0.001, Number(body.interval_easy)  || DEFAULT_SETTINGS.interval_easy),
+    interval_again:  Math.max(0.001, Number(body.interval_again) || DEFAULT_SETTINGS.interval_again),
+    interval_hard:   Math.max(0.001, Number(body.interval_hard)  || DEFAULT_SETTINGS.interval_hard),
+    interval_good:   Math.max(0.001, Number(body.interval_good)  || DEFAULT_SETTINGS.interval_good),
+    interval_easy:   Math.max(0.001, Number(body.interval_easy)  || DEFAULT_SETTINGS.interval_easy),
+    type_in_answer:  Boolean(body.type_in_answer),
     updated_at: new Date().toISOString(),
   };
 

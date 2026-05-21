@@ -62,6 +62,7 @@ export interface UserSettings {
   interval_hard: number;
   interval_good: number;
   interval_easy: number;
+  type_in_answer: boolean;
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -69,4 +70,5 @@ export const DEFAULT_SETTINGS: UserSettings = {
   interval_hard: 1,
   interval_good: 1,
   interval_easy: 6,
+  type_in_answer: false,
 };

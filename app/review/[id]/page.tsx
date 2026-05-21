@@ -52,6 +52,8 @@ export default function ReviewPage() {
   const [showHint, setShowHint] = useState(false);
   const [showSource, setShowSource] = useState(false);
   const [showProgress, setShowProgress] = useState(true);
+  const [typedAnswer, setTypedAnswer] = useState("");
+  const [answerChecked, setAnswerChecked] = useState(false);
   const [ratings, setRatings] = useState<ReviewRating[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -95,6 +97,8 @@ export default function ReviewPage() {
     setRevealed(false);
     setShowHint(false);
     setShowSource(false);
+    setTypedAnswer("");
+    setAnswerChecked(false);
     setSubmitting(false);
   }
 
@@ -102,7 +106,7 @@ export default function ReviewPage() {
     const onKey = (e: KeyboardEvent) => {
       if (!loaded || idx >= cards.length) return;
       if (e.key === "Escape") { router.push(`/deck/${id}`); return; }
-      if (e.key === " " || e.key === "Enter") { e.preventDefault(); if (!revealed) setRevealed(true); }
+      if (e.key === " " || e.key === "Enter") { e.preventDefault(); if (!revealed && !settings.type_in_answer) setRevealed(true); }
       if (revealed) {
         if (e.key === "1") rate("again");
         if (e.key === "2") rate("hard");
@@ -269,6 +273,12 @@ export default function ReviewPage() {
 
             {revealed && (
               <div className="mt-10 pt-8" style={{ borderTop: "1px solid var(--border)" }}>
+                {answerChecked && typedAnswer && (
+                  <div className="mb-6 p-4 rounded-xl" style={{ background: "var(--bg-2)" }}>
+                    <Eyebrow>Your answer</Eyebrow>
+                    <p className="mt-2 text-[16px] leading-relaxed" style={{ color: "var(--ink)" }}>{typedAnswer}</p>
+                  </div>
+                )}
                 <Eyebrow style={{ color: "var(--accent-deep)" }}>Answer</Eyebrow>
                 <p className="mt-3 text-[17px] sm:text-[18px] leading-[1.65]" style={{ color: "var(--ink-soft)" }}>
                   {card.back}
@@ -301,14 +311,46 @@ export default function ReviewPage() {
 
           <div className="mt-6">
             {!revealed ? (
-              <button
-                onClick={() => setRevealed(true)}
-                className="w-full inline-flex items-center justify-center gap-3 px-4 py-4 text-[16px] font-medium rounded-2xl transition-colors"
-                style={{ background: "var(--ink)", color: "var(--bg)" }}
-              >
-                Show answer
-                <span className="text-[22px] leading-none opacity-60">␣</span>
-              </button>
+              settings.type_in_answer ? (
+                <div className="flex flex-col gap-2">
+                  <textarea
+                    value={typedAnswer}
+                    onChange={(e) => setTypedAnswer(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (typedAnswer.trim()) { setAnswerChecked(true); setRevealed(true); } } }}
+                    placeholder="Type your answer… (Enter to check)"
+                    rows={3}
+                    className="w-full px-4 py-3 text-[16px] rounded-2xl outline-none resize-none"
+                    style={{ border: "1.5px solid var(--border-strong)", background: "white", color: "var(--ink)" }}
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { if (typedAnswer.trim()) { setAnswerChecked(true); setRevealed(true); } }}
+                      disabled={!typedAnswer.trim()}
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3.5 text-[15px] font-medium rounded-2xl transition-colors disabled:opacity-40"
+                      style={{ background: "var(--ink)", color: "var(--bg)" }}
+                    >
+                      Check answer
+                    </button>
+                    <button
+                      onClick={() => setRevealed(true)}
+                      className="inline-flex items-center justify-center px-4 py-3.5 text-[14px] font-medium rounded-2xl transition-colors"
+                      style={{ background: "var(--bg-2)", color: "var(--muted)" }}
+                    >
+                      Show answer
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setRevealed(true)}
+                  className="w-full inline-flex items-center justify-center gap-3 px-4 py-4 text-[16px] font-medium rounded-2xl transition-colors"
+                  style={{ background: "var(--ink)", color: "var(--bg)" }}
+                >
+                  Show answer
+                  <span className="text-[22px] leading-none opacity-60">␣</span>
+                </button>
+              )
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {(["again", "hard", "good", "easy"] as ReviewRating[]).map((r, i) => {
