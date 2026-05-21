@@ -223,15 +223,15 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortBy)}
-              className="px-3 py-2.5 rounded-xl text-[13px] font-mono bg-white outline-none appearance-none cursor-pointer"
+              className="pl-3 pr-3 py-2.5 rounded-xl text-[13px] font-mono bg-white outline-none appearance-none cursor-pointer"
               style={{ border: "1px solid var(--border)", color: "var(--muted)" }}
             >
-              <option value="custom">Custom</option>
-              <option value="name-asc">Name A→Z</option>
-              <option value="name-desc">Name Z→A</option>
-              <option value="date-new">Newest</option>
-              <option value="date-old">Oldest</option>
-              <option value="due">Most due</option>
+              <option value="custom">Sort by: Custom</option>
+              <option value="name-asc">Sort by: Name A→Z</option>
+              <option value="name-desc">Sort by: Name Z→A</option>
+              <option value="date-new">Sort by: Newest</option>
+              <option value="date-old">Sort by: Oldest</option>
+              <option value="due">Sort by: Most due</option>
             </select>
           </div>
         </header>
