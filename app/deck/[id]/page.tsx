@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import type { Card, Document, DocumentSource } from "@/types";
+import type { Card, Document, DocumentSource, Playlist } from "@/types";
 
 function Eyebrow({ children, className = "", style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
@@ -35,6 +35,8 @@ export default function DeckPage() {
   const router = useRouter();
   const [document, setDocument] = useState<Document | null>(null);
   const [sources, setSources] = useState<DocumentSource[]>([]);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [playlistCardIds, setPlaylistCardIds] = useState<Map<string, Set<string>>>(new Map());
   const [cards, setCards] = useState<Card[]>([]);
   const [chunkMap, setChunkMap] = useState<Map<string, string>>(new Map());
   const [expandedSource, setExpandedSource] = useState<string | null>(null);
@@ -80,6 +82,13 @@ export default function DeckPage() {
   const [cardSearch, setCardSearch] = useState("");
   const [gridView, setGridView] = useState(false);
 
+  // Playlist UI
+  const [creatingPlaylist, setCreatingPlaylist] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState("");
+  const [renamingPlaylistId, setRenamingPlaylistId] = useState<string | null>(null);
+  const [renamePlaylistValue, setRenamePlaylistValue] = useState("");
+  const [openCardPlaylistId, setOpenCardPlaylistId] = useState<string | null>(null);
+
   // Scroll-aware header
   const [scrolled, setScrolled] = useState(false);
   const [heroHeight, setHeroHeight] = useState(0);
@@ -115,6 +124,16 @@ export default function DeckPage() {
 
       const { data: docSources } = await supabase.from("document_sources").select("*").eq("document_id", id).order("created_at");
       setSources(docSources ?? []);
+
+      const { data: pl } = await supabase.from("playlists").select("*").eq("document_id", id).order("created_at");
+      setPlaylists(pl ?? []);
+      if (pl && pl.length > 0) {
+        const { data: pcRows } = await supabase.from("playlist_cards").select("playlist_id, card_id").in("playlist_id", pl.map(p => p.id));
+        const map = new Map<string, Set<string>>();
+        pl.forEach(p => map.set(p.id, new Set()));
+        (pcRows ?? []).forEach(r => map.get(r.playlist_id)?.add(r.card_id));
+        setPlaylistCardIds(map);
+      }
 
       const { data: existing } = await supabase.from("cards").select("*").eq("document_id", id);
       if (existing && existing.length > 0) {
@@ -320,6 +339,90 @@ export default function DeckPage() {
       }
     }
     setCreatingCard(false);
+  }
+
+  async function createPlaylist() {
+    if (!newPlaylistName.trim()) return;
+    const res = await fetch("/api/playlists", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentId: id, name: newPlaylistName }),
+    });
+    if (res.ok) {
+      const pl = await res.json();
+      setPlaylists(prev => [...prev, pl]);
+      setPlaylistCardIds(prev => new Map(prev).set(pl.id, new Set()));
+      setNewPlaylistName("");
+      setCreatingPlaylist(false);
+    }
+  }
+
+  async function renamePlaylist(plId: string, name: string) {
+    const res = await fetch(`/api/playlists/${plId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setPlaylists(prev => prev.map(p => p.id === plId ? updated : p));
+      setRenamingPlaylistId(null);
+    }
+  }
+
+  async function deletePlaylist(plId: string) {
+    const res = await fetch(`/api/playlists/${plId}`, { method: "DELETE" });
+    if (res.ok) {
+      setPlaylists(prev => prev.filter(p => p.id !== plId));
+      setPlaylistCardIds(prev => { const m = new Map(prev); m.delete(plId); return m; });
+    }
+  }
+
+  async function toggleCardInPlaylist(plId: string, cardId: string) {
+    const inPlaylist = playlistCardIds.get(plId)?.has(cardId);
+    const method = inPlaylist ? "DELETE" : "POST";
+    const res = await fetch(`/api/playlists/${plId}/cards`, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cardId }),
+    });
+    if (res.ok) {
+      setPlaylistCardIds(prev => {
+        const m = new Map(prev);
+        const s = new Set(m.get(plId) ?? []);
+        inPlaylist ? s.delete(cardId) : s.add(cardId);
+        m.set(plId, s);
+        return m;
+      });
+    }
+  }
+
+  async function saveHardWords() {
+    const supabase = (await import("@/lib/supabase/client")).createClient();
+    const { data: reviews } = await supabase
+      .from("card_reviews")
+      .select("card_id, repetitions, ease_factor")
+      .in("card_id", cards.map(c => c.id));
+    const hardIds = (reviews ?? [])
+      .filter(r => r.repetitions === 0 || r.ease_factor < 2.0)
+      .map(r => r.card_id);
+    if (hardIds.length === 0) return;
+    const res = await fetch("/api/playlists", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentId: id, name: "Hard words" }),
+    });
+    if (!res.ok) return;
+    const pl = await res.json();
+    await Promise.all(hardIds.map(cardId =>
+      fetch(`/api/playlists/${pl.id}/cards`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cardId }),
+      })
+    ));
+    setPlaylists(prev => [...prev, pl]);
+    setPlaylistCardIds(prev => new Map(prev).set(pl.id, new Set(hardIds)));
   }
 
   if (error) {
@@ -531,6 +634,109 @@ export default function DeckPage() {
           </svg>
           All decks
         </Link>
+        {/* Playlists */}
+        {(playlists.length > 0 || cards.length > 0) && (
+          <div className="mb-10">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-serif text-[28px] leading-tight text-[var(--ink)]">Playlists</h2>
+              <div className="flex items-center gap-3">
+                <Eyebrow>{playlists.length} total</Eyebrow>
+                {!creatingPlaylist && (
+                  <button onClick={() => { setCreatingPlaylist(true); setNewPlaylistName(""); }}
+                    className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
+                    style={{ color: "var(--accent-deep)" }}>
+                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                    New playlist
+                  </button>
+                )}
+                {cards.length > 0 && (
+                  <button onClick={saveHardWords}
+                    className="font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
+                    style={{ color: "var(--complement-deep)" }}>
+                    Save hard words
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {creatingPlaylist && (
+              <div className="mb-4 p-5 rounded-2xl bg-white" style={{ border: "1px solid var(--border)" }}>
+                <input
+                  value={newPlaylistName}
+                  onChange={e => setNewPlaylistName(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") createPlaylist(); if (e.key === "Escape") setCreatingPlaylist(false); }}
+                  placeholder="Playlist name…"
+                  className="w-full font-serif text-[20px] text-[var(--ink)] bg-transparent outline-none"
+                  autoFocus
+                />
+                <div className="mt-3 flex gap-2">
+                  <button onClick={createPlaylist} disabled={!newPlaylistName.trim()}
+                    className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-lg text-white disabled:opacity-50"
+                    style={{ background: "var(--ink)" }}>Create</button>
+                  <button onClick={() => setCreatingPlaylist(false)}
+                    className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium"
+                    style={{ color: "var(--muted)" }}>Cancel</button>
+                </div>
+              </div>
+            )}
+
+            {playlists.length === 0 ? (
+              <div className="rounded-2xl p-8 text-center" style={{ border: "1px dashed var(--border-strong)" }}>
+                <Eyebrow>No playlists yet — create one or save hard words</Eyebrow>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {playlists.map(pl => {
+                  const count = playlistCardIds.get(pl.id)?.size ?? 0;
+                  return (
+                    <div key={pl.id} className="group bg-white rounded-2xl px-6 py-4 flex items-center gap-4" style={{ border: "1px solid var(--border)" }}>
+                      <svg viewBox="0 0 24 24" className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--muted)" }}>
+                        <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+                      </svg>
+                      <div className="flex-1 min-w-0">
+                        {renamingPlaylistId === pl.id ? (
+                          <input
+                            value={renamePlaylistValue}
+                            onChange={e => setRenamePlaylistValue(e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter") renamePlaylist(pl.id, renamePlaylistValue); if (e.key === "Escape") setRenamingPlaylistId(null); }}
+                            onBlur={() => { if (renamePlaylistValue.trim()) renamePlaylist(pl.id, renamePlaylistValue); else setRenamingPlaylistId(null); }}
+                            className="font-serif text-[18px] text-[var(--ink)] bg-transparent outline-none border-b w-full"
+                            style={{ borderColor: "var(--accent)" }}
+                            autoFocus
+                          />
+                        ) : (
+                          <span className="font-serif text-[18px] text-[var(--ink)]">{pl.name}</span>
+                        )}
+                        <span className="ml-3 font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>{count} cards</span>
+                      </div>
+                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => { setRenamingPlaylistId(pl.id); setRenamePlaylistValue(pl.name); }}
+                          className="p-1.5 rounded-lg hover:bg-[var(--bg-2)]" style={{ color: "var(--muted)" }} title="Rename">
+                          <PencilIcon />
+                        </button>
+                        <button onClick={() => deletePlaylist(pl.id)}
+                          className="p-1.5 rounded-lg hover:bg-[var(--bg-2)]" style={{ color: "var(--muted)" }} title="Delete">
+                          <TrashIcon />
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => router.push(`/review/${id}?playlist=${pl.id}`)}
+                        disabled={count === 0}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-xl transition-colors disabled:opacity-40"
+                        style={{ background: "var(--ink)", color: "var(--bg)" }}>
+                        Review
+                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+                        </svg>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Add source form */}
         {addingSource && (
           <div className="mb-8 p-6 rounded-2xl bg-white" style={{ border: "1px solid var(--border)" }}>
@@ -873,8 +1079,34 @@ export default function DeckPage() {
                             >
                               <TrashIcon />
                             </button>
+                            {playlists.length > 0 && (
+                              <button
+                                onClick={() => setOpenCardPlaylistId(openCardPlaylistId === card.id ? null : card.id)}
+                                className="p-1.5 rounded-lg transition-colors hover:bg-[var(--bg-2)]"
+                                style={{ color: openCardPlaylistId === card.id ? "var(--accent-deep)" : "var(--muted)" }}
+                                title="Add to playlist"
+                              >
+                                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+                                </svg>
+                              </button>
+                            )}
                           </div>
                         </div>
+                        {openCardPlaylistId === card.id && playlists.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {playlists.map(pl => {
+                              const inPl = playlistCardIds.get(pl.id)?.has(card.id);
+                              return (
+                                <button key={pl.id} onClick={() => toggleCardInPlaylist(pl.id, card.id)}
+                                  className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] px-2 py-1 rounded-full transition-colors"
+                                  style={{ background: inPl ? "var(--ink)" : "var(--bg-2)", color: inPl ? "var(--bg)" : "var(--muted)" }}>
+                                  {inPl ? "✓ " : "+ "}{pl.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                         <p className="mt-3 text-[14.5px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
 
                         {card.hint && (

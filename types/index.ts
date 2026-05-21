@@ -1,5 +1,12 @@
 export type SourceType = "pdf" | "url" | "manual";
 
+export interface Playlist {
+  id: string;
+  document_id: string;
+  name: string;
+  created_at: string;
+}
+
 export interface DocumentSource {
   id: string;
   document_id: string;

@@ -69,7 +69,14 @@ export default function ReviewPage() {
       if (!allCards || allCards.length === 0) { setNoCards(true); setLoaded(true); return; }
       const { data: reviews } = await supabase.from("card_reviews").select("card_id, due_date").in("card_id", allCards.map((c) => c.id));
       const reviewedMap = new Map(reviews?.map((r) => [r.card_id, r.due_date]));
-      const allDue = allCards.filter((c) => { const d = reviewedMap.get(c.id); return !d || d <= today; });
+      const playlistId = searchParams.get("playlist");
+      let eligibleCards = allCards;
+      if (playlistId) {
+        const { data: pcRows } = await supabase.from("playlist_cards").select("card_id").eq("playlist_id", playlistId);
+        const ids = new Set((pcRows ?? []).map(r => r.card_id));
+        eligibleCards = allCards.filter(c => ids.has(c.id));
+      }
+      const allDue = eligibleCards.filter((c) => { const d = reviewedMap.get(c.id); return !d || d <= today; });
       const due = limit ? allDue.slice(0, limit) : allDue;
 
       const { data: chunks } = await supabase
