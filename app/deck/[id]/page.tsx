@@ -588,7 +588,7 @@ export default function DeckPage() {
             </button>
             {!generating && (
               <button
-                onClick={() => { setAddingCard(true); setTimeout(() => window.document.getElementById("new-card-front")?.focus(), 50); }}
+                onClick={() => { setAddingCard(true); setTimeout(() => { const el = window.document.getElementById("new-card-front"); el?.focus(); el?.scrollIntoView({ behavior: "smooth", block: "center" }); }, 100); }}
                 className={`inline-flex items-center justify-center gap-1.5 font-medium rounded-xl transition-colors ${scrolled ? "px-3 py-1.5 text-[13px]" : "px-3 py-2.5 text-sm"}`}
                 style={{ background: "var(--bg-2)", color: "var(--ink)" }}
               >
