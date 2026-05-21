@@ -8,10 +8,11 @@ const WIDTHS = [2, 5, 10, 18];
 interface Point { x: number; y: number; }
 
 export default function DrawingCanvas({
-  onSave, onCancel,
+  onSave, onCancel, hideActions = false,
 }: {
   onSave: (blob: Blob) => void;
   onCancel: () => void;
+  hideActions?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [color, setColor] = useState(COLORS[0]);
@@ -151,22 +152,24 @@ export default function DrawingCanvas({
         onTouchEnd={stopDraw}
       />
 
-      <div className="mt-3 flex gap-2">
-        <button
-          onClick={save}
-          className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-xl text-white"
-          style={{ background: "var(--ink)" }}
-        >
-          Save drawing
-        </button>
-        <button
-          onClick={onCancel}
-          className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium"
-          style={{ color: "var(--muted)" }}
-        >
-          Cancel
-        </button>
-      </div>
+      {!hideActions && (
+        <div className="mt-3 flex gap-2">
+          <button
+            onClick={save}
+            className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-xl text-white"
+            style={{ background: "var(--ink)" }}
+          >
+            Save drawing
+          </button>
+          <button
+            onClick={onCancel}
+            className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium"
+            style={{ color: "var(--muted)" }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
     </div>
   );
 }

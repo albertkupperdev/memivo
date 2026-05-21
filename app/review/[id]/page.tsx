@@ -418,6 +418,7 @@ export default function ReviewPage() {
                   <DrawingCanvas
                     onSave={() => {}}
                     onCancel={() => setDrawingActive(false)}
+                    hideActions
                   />
                   <button
                     onClick={() => setRevealed(true)}
