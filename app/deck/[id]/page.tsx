@@ -50,6 +50,7 @@ export default function DeckPage() {
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [editFront, setEditFront] = useState("");
   const [editBack, setEditBack] = useState("");
+  const [editHint, setEditHint] = useState("");
   const [savingCard, setSavingCard] = useState(false);
   const [saveCardError, setSaveCardError] = useState<string | null>(null);
   const [confirmDeleteCardId, setConfirmDeleteCardId] = useState<string | null>(null);
@@ -163,6 +164,7 @@ export default function DeckPage() {
     setEditingCardId(card.id);
     setEditFront(card.front);
     setEditBack(card.back);
+    setEditHint(card.hint ?? "");
   }
 
   async function saveCard() {
@@ -172,7 +174,7 @@ export default function DeckPage() {
     const res = await fetch(`/api/cards/${editingCardId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ front: editFront, back: editBack }),
+      body: JSON.stringify({ front: editFront, back: editBack, hint: editHint || null }),
     });
     if (res.ok) {
       const updated = await res.json();
@@ -520,6 +522,13 @@ export default function DeckPage() {
                           style={{ color: "var(--ink-soft)", borderColor: "var(--border-strong)" }}
                           placeholder="Back"
                         />
+                        <input
+                          value={editHint}
+                          onChange={(e) => setEditHint(e.target.value)}
+                          className="w-full mt-3 text-[13px] bg-transparent outline-none border-b"
+                          style={{ color: "var(--muted)", borderColor: "var(--border-strong)" }}
+                          placeholder="Hint (optional)"
+                        />
                         <div className="mt-4 flex items-center gap-2 flex-wrap">
                           <button
                             onClick={saveCard}
@@ -601,6 +610,13 @@ export default function DeckPage() {
                           </div>
                         </div>
                         <p className="mt-3 text-[14.5px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
+
+                        {card.hint && (
+                          <p className="mt-2 text-[13px]" style={{ color: "var(--muted)" }}>
+                            <span className="font-mono text-[10px] uppercase tracking-[0.14em] mr-1.5" style={{ color: "var(--soft)" }}>Hint</span>
+                            {card.hint}
+                          </p>
+                        )}
 
                         {chunkMap.has(card.chunk_id) && (
                           <div className="mt-4">

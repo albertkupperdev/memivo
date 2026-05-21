@@ -6,6 +6,7 @@ A card can test: a definition, a rule, a formula, a method, a concept, an exampl
 Rules:
 - Front: a specific question about the subject matter
 - Back: a precise answer (1-3 sentences)
+- Hint: a short clue (max 1 sentence) that nudges recall without revealing the answer — e.g. the category, a related concept, or a partial cue
 - No duplicate concepts
 
 Do NOT create cards about: the structure or outline of the book/course, what topics are covered in which chapter, course objectives, or instructions on how to use the study material.
@@ -15,7 +16,7 @@ Do NOT create cards that ask for specific numerical answers to word problems fro
 Do NOT create cards based on anecdotes, stories, or narrative examples used to illustrate a point (e.g. "What happened to the person in the example?", "What did the writer's colleague say?"). Instead, extract the underlying concept, rule, or principle the example was demonstrating.
 
 Return ONLY a JSON array — no text before or after:
-[{"front": "...", "back": "..."}]
+[{"front": "...", "back": "...", "hint": "..."}]
 
 Return [] ONLY if the text consists entirely of: copyright notices, publisher info, a table of contents with no explanations, or a blank/title page. Any text with actual subject matter must produce cards.
 

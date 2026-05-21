@@ -30,6 +30,7 @@ export interface Card {
   chunk_id: string;
   front: string;
   back: string;
+  hint: string | null;
   created_at: string;
 }
 

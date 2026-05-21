@@ -33,7 +33,7 @@ function sampleChunks<T>(arr: T[], max: number): T[] {
 async function generateCardsForChunk(
   chunk: { id: string; content: string },
   documentId: string
-): Promise<{ document_id: string; chunk_id: string; front: string; back: string }[]> {
+): Promise<{ document_id: string; chunk_id: string; front: string; back: string; hint: string | null }[]> {
   try {
     const completion = await groq.chat.completions.create(
       {
@@ -46,7 +46,7 @@ async function generateCardsForChunk(
     );
 
     const raw = completion.choices[0]?.message?.content ?? "";
-    let parsed: { front: string; back: string }[];
+    let parsed: { front: string; back: string; hint?: string }[];
     try {
       parsed = JSON.parse(raw);
     } catch {
@@ -58,7 +58,7 @@ async function generateCardsForChunk(
     if (!Array.isArray(parsed)) return [];
     return parsed
       .filter((c) => typeof c.front === "string" && typeof c.back === "string")
-      .map((c) => ({ document_id: documentId, chunk_id: chunk.id, front: c.front.trim(), back: c.back.trim() }));
+      .map((c) => ({ document_id: documentId, chunk_id: chunk.id, front: c.front.trim(), back: c.back.trim(), hint: c.hint?.trim() ?? null }));
   } catch {
     return [];
   }

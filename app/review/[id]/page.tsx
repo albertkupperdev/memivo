@@ -43,6 +43,7 @@ export default function ReviewPage() {
   const [chunkMap, setChunkMap] = useState<Map<string, string>>(new Map());
   const [idx, setIdx] = useState(0);
   const [revealed, setRevealed] = useState(false);
+  const [showHint, setShowHint] = useState(false);
   const [showSource, setShowSource] = useState(false);
   const [showProgress, setShowProgress] = useState(true);
   const [ratings, setRatings] = useState<ReviewRating[]>([]);
@@ -84,6 +85,7 @@ export default function ReviewPage() {
     setRatings((prev) => [...prev, rating]);
     setIdx((prev) => prev + 1);
     setRevealed(false);
+    setShowHint(false);
     setShowSource(false);
     setSubmitting(false);
   }
@@ -233,6 +235,29 @@ export default function ReviewPage() {
             <p className="mt-4 font-serif text-[34px] sm:text-[40px] leading-[1.15] text-[var(--ink)]">
               {card.front}
             </p>
+
+            {/* Hint */}
+            {card.hint && !revealed && (
+              <div className="mt-6">
+                {showHint ? (
+                  <div className="inline-flex items-start gap-2 px-3 py-2 rounded-xl" style={{ background: "var(--accent-bg)" }}>
+                    <span className="font-mono text-[10px] uppercase tracking-[0.14em] mt-0.5 flex-shrink-0" style={{ color: "var(--accent-deep)" }}>Hint</span>
+                    <span className="text-[14px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>{card.hint}</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowHint(true)}
+                    className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
+                    style={{ color: "var(--muted)" }}
+                  >
+                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+                    </svg>
+                    Show hint
+                  </button>
+                )}
+              </div>
+            )}
 
             {revealed && (
               <div className="mt-10 pt-8" style={{ borderTop: "1px solid var(--border)" }}>
