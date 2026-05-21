@@ -334,7 +334,7 @@ export default function DeckPage() {
     <div className="flex-1 w-full">
       {/* Fixed hero — fixed so height changes don't affect scrollY */}
       <div ref={heroRef} className="fixed left-0 right-0 z-20" style={{ top: 47, background: "var(--bg)", borderBottom: "1px solid var(--border)" }}>
-        <div className={`max-w-2xl mx-auto px-6 transition-all duration-300 ${scrolled ? "py-3" : "py-7"}`}>
+        <div className={`max-w-4xl mx-auto px-6 transition-all duration-300 ${scrolled ? "py-3" : "py-7"}`}>
 
           {/* Sources — hidden when scrolled */}
           {!scrolled && (
@@ -520,7 +520,7 @@ export default function DeckPage() {
 
       {/* Scrollable content — padded to sit below fixed hero */}
       <div style={{ paddingTop: heroHeight }}>
-      <div className="max-w-2xl mx-auto px-6 pt-8 pb-10">
+      <div className="max-w-4xl mx-auto px-6 pt-8 pb-10">
         <Link
           href="/dashboard"
           className="inline-flex items-center gap-2 mb-8 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
@@ -743,7 +743,7 @@ export default function DeckPage() {
               </div>
             );
             if (gridView) return (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                 {filtered.map((card) => (
                   <div key={card.id} className="bg-white rounded-2xl p-5 flex flex-col gap-3" style={{ border: "1px solid var(--border)" }}>
                     <p className="font-serif text-[16px] leading-snug text-[var(--ink)]">{card.front}</p>

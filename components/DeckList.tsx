@@ -174,7 +174,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
 
   return (
     <div className="flex-1 w-full">
-      <div className="max-w-2xl mx-auto px-6 py-16">
+      <div className="max-w-4xl mx-auto px-6 py-16">
         <header className="mb-12">
           <div className="flex items-start justify-between gap-4 mb-6">
             <Eyebrow>Library · {new Date().getFullYear()}</Eyebrow>

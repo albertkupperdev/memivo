@@ -105,7 +105,7 @@ export default function SettingsPage() {
 
   return (
     <div className="flex-1 w-full">
-      <div className="max-w-2xl mx-auto px-6 py-16">
+      <div className="max-w-4xl mx-auto px-6 py-16">
         <Link
           href="/dashboard"
           className="inline-flex items-center gap-2 mb-10 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
