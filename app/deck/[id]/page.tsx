@@ -88,6 +88,7 @@ export default function DeckPage() {
   const [renamingPlaylistId, setRenamingPlaylistId] = useState<string | null>(null);
   const [renamePlaylistValue, setRenamePlaylistValue] = useState("");
   const [openCardPlaylistId, setOpenCardPlaylistId] = useState<string | null>(null);
+  const [confirmDeletePlaylistId, setConfirmDeletePlaylistId] = useState<string | null>(null);
 
   // Scroll-aware header
   const [scrolled, setScrolled] = useState(false);
@@ -689,7 +690,23 @@ export default function DeckPage() {
                 {playlists.map(pl => {
                   const count = playlistCardIds.get(pl.id)?.size ?? 0;
                   return (
-                    <div key={pl.id} className="group bg-white rounded-2xl px-6 py-4 flex items-center gap-4" style={{ border: "1px solid var(--border)" }}>
+                    <div key={pl.id} className="group bg-white rounded-2xl px-6 py-4 flex flex-col gap-3" style={{ border: `1px solid ${confirmDeletePlaylistId === pl.id ? "var(--complement-border)" : "var(--border)"}`, background: confirmDeletePlaylistId === pl.id ? "var(--complement-bg)" : "white" }}>
+                    {confirmDeletePlaylistId === pl.id ? (
+                      <div className="flex items-center justify-between gap-4">
+                        <p className="text-[14px]" style={{ color: "var(--complement-deeper)" }}>
+                          Delete <span className="font-medium text-[var(--ink)]">"{pl.name}"</span>?
+                        </p>
+                        <div className="flex gap-2 shrink-0">
+                          <button onClick={() => { deletePlaylist(pl.id); setConfirmDeletePlaylistId(null); }}
+                            className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-lg text-white"
+                            style={{ background: "var(--complement)" }}>Delete</button>
+                          <button onClick={() => setConfirmDeletePlaylistId(null)}
+                            className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium"
+                            style={{ color: "var(--muted)" }}>Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                    <div className="flex items-center gap-4">
                       <svg viewBox="0 0 24 24" className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--muted)" }}>
                         <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
                       </svg>
@@ -714,7 +731,7 @@ export default function DeckPage() {
                           className="p-1.5 rounded-lg hover:bg-[var(--bg-2)]" style={{ color: "var(--muted)" }} title="Rename">
                           <PencilIcon />
                         </button>
-                        <button onClick={() => deletePlaylist(pl.id)}
+                        <button onClick={() => setConfirmDeletePlaylistId(pl.id)}
                           className="p-1.5 rounded-lg hover:bg-[var(--bg-2)]" style={{ color: "var(--muted)" }} title="Delete">
                           <TrashIcon />
                         </button>
@@ -729,6 +746,8 @@ export default function DeckPage() {
                           <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
                         </svg>
                       </button>
+                    </div>
+                    )}
                     </div>
                   );
                 })}
