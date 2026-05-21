@@ -54,6 +54,7 @@ export default function ReviewPage() {
   const [showProgress, setShowProgress] = useState(true);
   const [typedAnswer, setTypedAnswer] = useState("");
   const [answerChecked, setAnswerChecked] = useState(false);
+  const [typeInActive, setTypeInActive] = useState(false);
   const [ratings, setRatings] = useState<ReviewRating[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -62,7 +63,7 @@ export default function ReviewPage() {
   useEffect(() => {
     async function load() {
       const supabase = createClient();
-      fetch("/api/settings").then(r => r.json()).then(s => setSettings(s)).catch(() => {});
+      fetch("/api/settings").then(r => r.json()).then(s => { setSettings(s); setTypeInActive(s.type_in_answer ?? false); }).catch(() => {});
       const today = new Date().toISOString().split("T")[0];
       const { data: allCards } = await supabase.from("cards").select("*").eq("document_id", id);
       if (!allCards || allCards.length === 0) { setNoCards(true); setLoaded(true); return; }
@@ -99,6 +100,7 @@ export default function ReviewPage() {
     setShowSource(false);
     setTypedAnswer("");
     setAnswerChecked(false);
+    setTypeInActive(settings.type_in_answer);
     setSubmitting(false);
   }
 
@@ -106,7 +108,8 @@ export default function ReviewPage() {
     const onKey = (e: KeyboardEvent) => {
       if (!loaded || idx >= cards.length) return;
       if (e.key === "Escape") { router.push(`/deck/${id}`); return; }
-      if (e.key === " " || e.key === "Enter") { e.preventDefault(); if (!revealed && !settings.type_in_answer) setRevealed(true); }
+      if (e.key === " ") { e.preventDefault(); if (!revealed) setRevealed(true); }
+      if (e.key === "Enter" && !revealed && !typeInActive) { e.preventDefault(); setTypeInActive(true); }
       if (revealed) {
         if (e.key === "1") rate("again");
         if (e.key === "2") rate("hard");
@@ -311,7 +314,7 @@ export default function ReviewPage() {
 
           <div className="mt-6">
             {!revealed ? (
-              settings.type_in_answer ? (
+              typeInActive ? (
                 <div className="flex flex-col gap-2">
                   <textarea
                     value={typedAnswer}
@@ -331,25 +334,36 @@ export default function ReviewPage() {
                       style={{ background: "var(--ink)", color: "var(--bg)" }}
                     >
                       Check answer
+                      <KbdKey>↵</KbdKey>
                     </button>
                     <button
                       onClick={() => setRevealed(true)}
-                      className="inline-flex items-center justify-center px-4 py-3.5 text-[14px] font-medium rounded-2xl transition-colors"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-3.5 text-[14px] font-medium rounded-2xl transition-colors"
                       style={{ background: "var(--bg-2)", color: "var(--muted)" }}
                     >
-                      Show answer
+                      Skip
                     </button>
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={() => setRevealed(true)}
-                  className="w-full inline-flex items-center justify-center gap-3 px-4 py-4 text-[16px] font-medium rounded-2xl transition-colors"
-                  style={{ background: "var(--ink)", color: "var(--bg)" }}
-                >
-                  Show answer
-                  <span className="text-[22px] leading-none opacity-60">␣</span>
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setRevealed(true)}
+                    className="flex-1 inline-flex items-center justify-center gap-3 px-4 py-4 text-[16px] font-medium rounded-2xl transition-colors"
+                    style={{ background: "var(--ink)", color: "var(--bg)" }}
+                  >
+                    Show answer
+                    <span className="text-[22px] leading-none opacity-60">␣</span>
+                  </button>
+                  <button
+                    onClick={() => setTypeInActive(true)}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-4 text-[14px] font-medium rounded-2xl transition-colors"
+                    style={{ background: "var(--bg-2)", color: "var(--muted)" }}
+                  >
+                    Type answer
+                    <KbdKey>↵</KbdKey>
+                  </button>
+                </div>
               )
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">

@@ -159,7 +159,7 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between py-5" style={{ borderBottom: "1px solid var(--border)" }}>
               <div>
                 <p className="text-[15px] font-medium text-[var(--ink)]">Type-in answer</p>
-                <p className="mt-0.5 text-[13px]" style={{ color: "var(--muted)" }}>Show a text input during review — you can still skip with "Show answer"</p>
+                <p className="mt-0.5 text-[13px]" style={{ color: "var(--muted)" }}>Auto-activate type-in on every card — you can always skip with "Show answer"</p>
               </div>
               <button
                 onClick={() => setSettings((s) => ({ ...s, type_in_answer: !s.type_in_answer }))}
