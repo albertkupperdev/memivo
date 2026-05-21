@@ -14,6 +14,7 @@ export interface Document {
   source_type: SourceType;
   source_url: string | null;
   folder_id: string | null;
+  position: number | null;
   created_at: string;
 }
 

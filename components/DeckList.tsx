@@ -12,6 +12,8 @@ interface DeckWithStats extends Document {
   dueCount: number;
 }
 
+type SortBy = "custom" | "name-asc" | "name-desc" | "date-new" | "date-old" | "due";
+
 interface Props {
   decks: DeckWithStats[];
   folders: Folder[];
@@ -25,11 +27,24 @@ function Eyebrow({ children, className = "", style }: { children: React.ReactNod
   );
 }
 
+function applySortBy(list: DeckWithStats[], sortBy: SortBy): DeckWithStats[] {
+  const s = [...list];
+  switch (sortBy) {
+    case "custom":    return s.sort((a, b) => (a.position ?? 99999) - (b.position ?? 99999));
+    case "name-asc":  return s.sort((a, b) => a.title.localeCompare(b.title));
+    case "name-desc": return s.sort((a, b) => b.title.localeCompare(a.title));
+    case "date-new":  return s.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    case "date-old":  return s.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    case "due":       return s.sort((a, b) => b.dueCount - a.dueCount);
+  }
+}
+
 export default function DeckList({ decks: initialDecks, folders: initialFolders }: Props) {
   const router = useRouter();
   const [decks, setDecks] = useState(initialDecks);
   const [folders, setFolders] = useState(initialFolders);
   const [showUploader, setShowUploader] = useState(initialDecks.length === 0);
+  const [sortBy, setSortBy] = useState<SortBy>("custom");
 
   // Folder creation
   const [creatingFolder, setCreatingFolder] = useState(false);
@@ -40,15 +55,18 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
-  // Deck → folder assignment
+  // Deck actions
   const [openMoveId, setOpenMoveId] = useState<string | null>(null);
-
-  // Search
-  const [query, setQuery] = useState("");
+  const [confirmDeleteDeckId, setConfirmDeleteDeckId] = useState<string | null>(null);
 
   // Drag and drop
   const [draggingDeckId, setDraggingDeckId] = useState<string | null>(null);
-  const [dragOverTarget, setDragOverTarget] = useState<string | null>(null); // folder id or "unfiled"
+  const [dragOverTarget, setDragOverTarget] = useState<string | null>(null);
+  const [dragOverDeckId, setDragOverDeckId] = useState<string | null>(null);
+  const [dragInsertBefore, setDragInsertBefore] = useState(true);
+
+  // Search
+  const [query, setQuery] = useState("");
 
   const totalDue = decks.reduce((acc, d) => acc + d.dueCount, 0);
   const totalCards = decks.reduce((acc, d) => acc + d.cardCount, 0);
@@ -107,12 +125,51 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
     });
   }
 
+  async function deleteDeck(deckId: string) {
+    setDecks((prev) => prev.filter((d) => d.id !== deckId));
+    setConfirmDeleteDeckId(null);
+    await fetch(`/api/documents/${deckId}`, { method: "DELETE" });
+  }
+
+  async function reorderSection(sectionDecks: DeckWithStats[], draggedId: string, targetId: string, before: boolean) {
+    const without = sectionDecks.filter((d) => d.id !== draggedId);
+    const dragged = sectionDecks.find((d) => d.id === draggedId)!;
+    const targetIdx = without.findIndex((d) => d.id === targetId);
+    const insertAt = before ? targetIdx : targetIdx + 1;
+    without.splice(insertAt, 0, dragged);
+    const reordered = without.map((d, i) => ({ ...d, position: i }));
+    setDecks((prev) => {
+      const map = new Map(reordered.map((d) => [d.id, d]));
+      return prev.map((d) => map.get(d.id) ?? d);
+    });
+    await Promise.all(reordered.map((d) =>
+      fetch(`/api/documents/${d.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ position: d.position }),
+      })
+    ));
+  }
+
+  function handleDeckDrop(sectionDecks: DeckWithStats[], targetDeckId: string, before: boolean) {
+    if (!draggingDeckId || draggingDeckId === targetDeckId) return;
+    const dragged = decks.find((d) => d.id === draggingDeckId);
+    const target = decks.find((d) => d.id === targetDeckId);
+    if (!dragged || !target) return;
+    // Same section → reorder
+    if (dragged.folder_id === target.folder_id && sortBy === "custom") {
+      reorderSection(sectionDecks, draggingDeckId, targetDeckId, before);
+    }
+    setDragOverDeckId(null);
+    setDraggingDeckId(null);
+  }
+
   const q = query.trim().toLowerCase();
   const filteredDecks = q ? decks.filter((d) => d.title.toLowerCase().includes(q)) : decks;
   const filteredFolders = q
     ? folders.filter((f) => f.name.toLowerCase().includes(q) || filteredDecks.some((d) => d.folder_id === f.id))
     : folders;
-  const unfiledDecks = filteredDecks.filter((d) => !d.folder_id);
+  const unfiledDecks = applySortBy(filteredDecks.filter((d) => !d.folder_id), sortBy);
   const folderMap = new Map(folders.map((f) => [f.id, f]));
 
   return (
@@ -143,28 +200,39 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
             <StatCell label="Due now" value={totalDue} accent={totalDue > 0} />
           </div>
 
-          <div className="mt-5 relative">
-            <svg viewBox="0 0 24 24" className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--muted)" }}>
-              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-            </svg>
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search decks and folders…"
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl text-[14px] bg-white outline-none transition-all"
-              style={{ border: "1px solid var(--border)", color: "var(--ink)" }}
-            />
-            {query && (
-              <button
-                onClick={() => setQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2"
-                style={{ color: "var(--muted)" }}
-              >
-                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 6 6 18M6 6l12 12"/>
-                </svg>
-              </button>
-            )}
+          <div className="mt-5 flex gap-2">
+            <div className="relative flex-1">
+              <svg viewBox="0 0 24 24" className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--muted)" }}>
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search decks and folders…"
+                className="w-full pl-10 pr-8 py-2.5 rounded-xl text-[14px] bg-white outline-none"
+                style={{ border: "1px solid var(--border)", color: "var(--ink)" }}
+              />
+              {query && (
+                <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }}>
+                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 6 6 18M6 6l12 12"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortBy)}
+              className="px-3 py-2.5 rounded-xl text-[13px] font-mono bg-white outline-none appearance-none cursor-pointer"
+              style={{ border: "1px solid var(--border)", color: "var(--muted)" }}
+            >
+              <option value="custom">Custom</option>
+              <option value="name-asc">Name A→Z</option>
+              <option value="name-desc">Name Z→A</option>
+              <option value="date-new">Newest</option>
+              <option value="date-old">Oldest</option>
+              <option value="due">Most due</option>
+            </select>
           </div>
         </header>
 
@@ -208,7 +276,6 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
           </div>
         )}
 
-        {/* New folder input */}
         {creatingFolder && (
           <div className="mb-6 p-5 rounded-2xl bg-white" style={{ border: "1px solid var(--border)" }}>
             <Eyebrow>New folder</Eyebrow>
@@ -221,19 +288,10 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
               autoFocus
             />
             <div className="mt-3 flex gap-2">
-              <button
-                onClick={createFolder}
-                disabled={savingFolder || !newFolderName.trim()}
-                className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-lg text-white disabled:opacity-50"
-                style={{ background: "var(--ink)" }}
-              >
+              <button onClick={createFolder} disabled={savingFolder || !newFolderName.trim()} className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-lg text-white disabled:opacity-50" style={{ background: "var(--ink)" }}>
                 {savingFolder ? "Creating…" : "Create"}
               </button>
-              <button
-                onClick={() => setCreatingFolder(false)}
-                className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium"
-                style={{ color: "var(--muted)" }}
-              >
+              <button onClick={() => setCreatingFolder(false)} className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium" style={{ color: "var(--muted)" }}>
                 Cancel
               </button>
             </div>
@@ -260,20 +318,24 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
           </div>
         ) : (
           <div className="flex flex-col gap-8">
-            {/* Folders */}
             {filteredFolders.map((folder) => {
-              const folderDecks = filteredDecks.filter((d) => d.folder_id === folder.id);
+              const folderDecks = applySortBy(filteredDecks.filter((d) => d.folder_id === folder.id), sortBy);
               const isOver = dragOverTarget === folder.id;
               return (
                 <div
                   key={folder.id}
-                  onDragOver={(e) => { e.preventDefault(); setDragOverTarget(folder.id); }}
+                  onDragOver={(e) => { e.preventDefault(); if (!dragOverDeckId) setDragOverTarget(folder.id); }}
                   onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverTarget(null); }}
-                  onDrop={(e) => { e.preventDefault(); if (draggingDeckId) moveDeck(draggingDeckId, folder.id); setDragOverTarget(null); setDraggingDeckId(null); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (dragOverDeckId) return;
+                    if (draggingDeckId) moveDeck(draggingDeckId, folder.id);
+                    setDragOverTarget(null);
+                    setDraggingDeckId(null);
+                  }}
                   className="rounded-2xl transition-all duration-150 p-2 -m-2"
                   style={isOver ? { background: "var(--accent-bg)", outline: "2px solid var(--accent)", outlineOffset: -2 } : {}}
                 >
-                  {/* Folder header */}
                   <div className="flex items-center gap-2 mb-3">
                     {renamingFolderId === folder.id ? (
                       <input
@@ -297,25 +359,11 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
                         <span className="font-mono text-[11px]" style={{ color: "var(--border-strong)" }}>·</span>
                         <Eyebrow>{folderDecks.length}</Eyebrow>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => { setRenamingFolderId(folder.id); setRenameValue(folder.name); }}
-                            className="p-1 rounded transition-colors hover:bg-[var(--bg-2)]"
-                            style={{ color: "var(--muted)" }}
-                            title="Rename folder"
-                          >
-                            <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
-                            </svg>
+                          <button onClick={() => { setRenamingFolderId(folder.id); setRenameValue(folder.name); }} className="p-1 rounded hover:bg-[var(--bg-2)]" style={{ color: "var(--muted)" }} title="Rename">
+                            <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
                           </button>
-                          <button
-                            onClick={() => deleteFolder(folder.id)}
-                            className="p-1 rounded transition-colors hover:bg-[var(--bg-2)]"
-                            style={{ color: "var(--muted)" }}
-                            title="Delete folder"
-                          >
-                            <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                            </svg>
+                          <button onClick={() => deleteFolder(folder.id)} className="p-1 rounded hover:bg-[var(--bg-2)]" style={{ color: "var(--muted)" }} title="Delete folder">
+                            <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
                           </button>
                         </div>
                       </div>
@@ -324,9 +372,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
 
                   {folderDecks.length === 0 ? (
                     <div className="rounded-2xl p-6 text-center" style={{ border: `1px dashed ${isOver ? "var(--accent)" : "var(--border-strong)"}` }}>
-                      <Eyebrow style={{ color: isOver ? "var(--accent-deep)" : undefined }}>
-                        {isOver ? "Drop here" : "No decks yet"}
-                      </Eyebrow>
+                      <Eyebrow style={{ color: isOver ? "var(--accent-deep)" : undefined }}>{isOver ? "Drop here" : "No decks yet"}</Eyebrow>
                     </div>
                   ) : (
                     <ul className="flex flex-col gap-3">
@@ -339,9 +385,18 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
                           openMoveId={openMoveId}
                           setOpenMoveId={setOpenMoveId}
                           onMove={moveDeck}
-                          onDragStart={(id) => setDraggingDeckId(id)}
-                          onDragEnd={() => setDraggingDeckId(null)}
+                          onDragStart={(id) => { setDraggingDeckId(id); setDragOverDeckId(null); }}
+                          onDragEnd={() => { setDraggingDeckId(null); setDragOverDeckId(null); setDragOverTarget(null); }}
                           isDragging={draggingDeckId === deck.id}
+                          onDragOverDeck={(id, before) => { setDragOverDeckId(id); setDragInsertBefore(before); setDragOverTarget(null); }}
+                          onDropOnDeck={(targetId, before) => { handleDeckDrop(folderDecks, targetId, before); }}
+                          dragOverDeckId={dragOverDeckId}
+                          dragInsertBefore={dragInsertBefore}
+                          canReorder={sortBy === "custom"}
+                          confirmDeleteDeckId={confirmDeleteDeckId}
+                          onRequestDelete={(id) => setConfirmDeleteDeckId(id)}
+                          onConfirmDelete={deleteDeck}
+                          onCancelDelete={() => setConfirmDeleteDeckId(null)}
                           currentFolderName={folderMap.get(deck.folder_id ?? "")?.name}
                         />
                       ))}
@@ -351,12 +406,17 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
               );
             })}
 
-            {/* Unfiled decks */}
             {(unfiledDecks.length > 0 || (draggingDeckId && decks.find(d => d.id === draggingDeckId)?.folder_id)) && (
               <div
-                onDragOver={(e) => { e.preventDefault(); setDragOverTarget("unfiled"); }}
+                onDragOver={(e) => { e.preventDefault(); if (!dragOverDeckId) setDragOverTarget("unfiled"); }}
                 onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverTarget(null); }}
-                onDrop={(e) => { e.preventDefault(); if (draggingDeckId) moveDeck(draggingDeckId, null); setDragOverTarget(null); setDraggingDeckId(null); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragOverDeckId) return;
+                  if (draggingDeckId) moveDeck(draggingDeckId, null);
+                  setDragOverTarget(null);
+                  setDraggingDeckId(null);
+                }}
                 className="rounded-2xl transition-all duration-150 p-2 -m-2"
                 style={dragOverTarget === "unfiled" ? { background: "var(--bg-2)", outline: "2px solid var(--border-strong)", outlineOffset: -2 } : {}}
               >
@@ -383,9 +443,18 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
                       openMoveId={openMoveId}
                       setOpenMoveId={setOpenMoveId}
                       onMove={moveDeck}
-                      onDragStart={(id) => setDraggingDeckId(id)}
-                      onDragEnd={() => setDraggingDeckId(null)}
+                      onDragStart={(id) => { setDraggingDeckId(id); setDragOverDeckId(null); }}
+                      onDragEnd={() => { setDraggingDeckId(null); setDragOverDeckId(null); setDragOverTarget(null); }}
                       isDragging={draggingDeckId === deck.id}
+                      onDragOverDeck={(id, before) => { setDragOverDeckId(id); setDragInsertBefore(before); setDragOverTarget(null); }}
+                      onDropOnDeck={(targetId, before) => { handleDeckDrop(unfiledDecks, targetId, before); }}
+                      dragOverDeckId={dragOverDeckId}
+                      dragInsertBefore={dragInsertBefore}
+                      canReorder={sortBy === "custom"}
+                      confirmDeleteDeckId={confirmDeleteDeckId}
+                      onRequestDelete={(id) => setConfirmDeleteDeckId(id)}
+                      onConfirmDelete={deleteDeck}
+                      onCancelDelete={() => setConfirmDeleteDeckId(null)}
                       currentFolderName={undefined}
                     />
                   ))}
@@ -400,7 +469,11 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
 }
 
 function DeckCard({
-  deck, index, folders, openMoveId, setOpenMoveId, onMove, onDragStart, onDragEnd, isDragging, currentFolderName,
+  deck, index, folders, openMoveId, setOpenMoveId, onMove,
+  onDragStart, onDragEnd, isDragging,
+  onDragOverDeck, onDropOnDeck, dragOverDeckId, dragInsertBefore, canReorder,
+  confirmDeleteDeckId, onRequestDelete, onConfirmDelete, onCancelDelete,
+  currentFolderName,
 }: {
   deck: DeckWithStats;
   index: number;
@@ -411,107 +484,146 @@ function DeckCard({
   onDragStart: (id: string) => void;
   onDragEnd: () => void;
   isDragging: boolean;
+  onDragOverDeck: (id: string, before: boolean) => void;
+  onDropOnDeck: (targetId: string, before: boolean) => void;
+  dragOverDeckId: string | null;
+  dragInsertBefore: boolean;
+  canReorder: boolean;
+  confirmDeleteDeckId: string | null;
+  onRequestDelete: (id: string) => void;
+  onConfirmDelete: (id: string) => void;
+  onCancelDelete: () => void;
   currentFolderName?: string;
 }) {
   const isOpen = openMoveId === deck.id;
+  const isDropTarget = dragOverDeckId === deck.id;
+  const confirmingDelete = confirmDeleteDeckId === deck.id;
 
   return (
     <li className="relative">
-      <Link
-        href={`/deck/${deck.id}`}
-        draggable
-        onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart(deck.id); }}
-        onDragEnd={onDragEnd}
-        className="group block bg-white rounded-2xl p-6 transition-all relative overflow-hidden"
-        style={{ border: "1px solid var(--border)", opacity: isDragging ? 0.4 : 1 }}
-      >
-        <span className="absolute left-0 top-6 bottom-6 w-[3px] rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "var(--accent)" }} />
+      {/* Reorder indicator above */}
+      {isDropTarget && dragInsertBefore && canReorder && (
+        <div className="absolute -top-1.5 left-0 right-0 h-0.5 rounded-full z-10" style={{ background: "var(--accent)" }} />
+      )}
 
-        <div className="flex items-start gap-5">
-          <div className="flex-shrink-0 pt-1 flex flex-col items-center gap-1.5">
-            <svg viewBox="0 0 10 16" className="w-2.5 h-4 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing" fill="currentColor" style={{ color: "var(--border-strong)" }}>
-              <circle cx="2" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/>
-              <circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/>
-              <circle cx="2" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/>
-            </svg>
-            <span className="font-mono text-[11px] uppercase tracking-[0.14em] tabular-nums" style={{ color: "var(--soft)" }}>
-              {String(index + 1).padStart(2, "0")}
-            </span>
+      {confirmingDelete ? (
+        <div className="bg-white rounded-2xl p-5" style={{ border: "1px solid var(--complement-border)", background: "var(--complement-bg)" }}>
+          <p className="text-[14px] leading-relaxed" style={{ color: "var(--complement-deeper)" }}>
+            Delete <span className="font-medium text-[var(--ink)]">"{deck.title}"</span>? All cards and review history will be removed.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button onClick={() => onConfirmDelete(deck.id)} className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-lg text-white" style={{ background: "var(--complement)" }}>
+              Delete
+            </button>
+            <button onClick={onCancelDelete} className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium" style={{ color: "var(--muted)" }}>
+              Cancel
+            </button>
           </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-serif text-[22px] leading-[1.15] text-[var(--ink)]">{deck.title}</h3>
-            <div className="mt-2 flex items-center gap-2 text-[13px]" style={{ color: "var(--muted)" }}>
-              {deck.source_type === "pdf" ? (
-                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 1 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 1 0 7.07 7.07l1.5-1.5"/>
-                </svg>
-              )}
-              <span className="truncate">{deck.source_url ?? `${deck.title}.pdf`}</span>
-            </div>
-            <div className="mt-4 flex items-center gap-4 flex-wrap">
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>
-                <span className="tabular-nums" style={{ color: "var(--ink)" }}>{deck.cardCount}</span> cards
+        </div>
+      ) : (
+        <Link
+          href={`/deck/${deck.id}`}
+          draggable
+          onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart(deck.id); }}
+          onDragEnd={onDragEnd}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const rect = e.currentTarget.getBoundingClientRect();
+            onDragOverDeck(deck.id, e.clientY < rect.top + rect.height / 2);
+          }}
+          onDragLeave={() => {}}
+          onDrop={(e) => { e.preventDefault(); e.stopPropagation(); onDropOnDeck(deck.id, dragInsertBefore); }}
+          className="group block bg-white rounded-2xl p-6 transition-all relative overflow-hidden"
+          style={{ border: "1px solid var(--border)", opacity: isDragging ? 0.4 : 1 }}
+        >
+          <span className="absolute left-0 top-6 bottom-6 w-[3px] rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "var(--accent)" }} />
+
+          <div className="flex items-start gap-5">
+            <div className="flex-shrink-0 pt-1 flex flex-col items-center gap-1.5">
+              <svg viewBox="0 0 10 16" className="w-2.5 h-4 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing" fill="currentColor" style={{ color: "var(--border-strong)" }}>
+                <circle cx="2" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/>
+                <circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/>
+                <circle cx="2" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/>
+              </svg>
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] tabular-nums" style={{ color: "var(--soft)" }}>
+                {String(index + 1).padStart(2, "0")}
               </span>
-              {deck.dueCount > 0 ? (
-                <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--accent-deep)" }}>
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent)" }} />
-                  <span className="tabular-nums" style={{ color: "var(--ink)" }}>{deck.dueCount}</span> due
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-serif text-[22px] leading-[1.15] text-[var(--ink)]">{deck.title}</h3>
+              <div className="mt-2 flex items-center gap-2 text-[13px]" style={{ color: "var(--muted)" }}>
+                {deck.source_type === "pdf" ? (
+                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 1 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 1 0 7.07 7.07l1.5-1.5"/>
+                  </svg>
+                )}
+                <span className="truncate">{deck.source_url ?? `${deck.title}.pdf`}</span>
+              </div>
+              <div className="mt-4 flex items-center gap-4 flex-wrap">
+                <span className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>
+                  <span className="tabular-nums" style={{ color: "var(--ink)" }}>{deck.cardCount}</span> cards
                 </span>
-              ) : (
-                <span className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--soft)" }}>· All caught up</span>
-              )}
-              {/* Folder badge */}
-              {folders.length > 0 && (
+                {deck.dueCount > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--accent-deep)" }}>
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent)" }} />
+                    <span className="tabular-nums" style={{ color: "var(--ink)" }}>{deck.dueCount}</span> due
+                  </span>
+                ) : (
+                  <span className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--soft)" }}>· All caught up</span>
+                )}
+                {folders.length > 0 && (
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenMoveId(isOpen ? null : deck.id); }}
+                    className="inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-full transition-colors"
+                    style={{ background: isOpen ? "var(--accent-bg)" : "var(--bg-2)", color: isOpen ? "var(--accent-deep)" : "var(--soft)" }}
+                  >
+                    <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    {currentFolderName ?? "Move"}
+                  </button>
+                )}
                 <button
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenMoveId(isOpen ? null : deck.id); }}
-                  className="inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-full transition-colors"
-                  style={{
-                    background: isOpen ? "var(--accent-bg)" : "var(--bg-2)",
-                    color: isOpen ? "var(--accent-deep)" : "var(--soft)",
-                  }}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRequestDelete(deck.id); }}
+                  className="opacity-0 group-hover:opacity-100 inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-full transition-all"
+                  style={{ background: "var(--complement-bg)", color: "var(--complement-deep)" }}
                 >
                   <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    <path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
                   </svg>
-                  {currentFolderName ?? "Move"}
+                  Delete
                 </button>
-              )}
+              </div>
             </div>
+            <svg viewBox="0 0 24 24" className="w-5 h-5 mt-1 transition-all group-hover:translate-x-0.5 flex-shrink-0" style={{ color: "var(--border-strong)" }} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+            </svg>
           </div>
-          <svg viewBox="0 0 24 24" className="w-5 h-5 mt-1 transition-all group-hover:translate-x-0.5 flex-shrink-0" style={{ color: "var(--border-strong)" }} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
-          </svg>
-        </div>
-      </Link>
+        </Link>
+      )}
 
       {/* Folder picker */}
       {isOpen && (
-        <div
-          className="absolute left-6 z-10 mt-1 py-1 rounded-xl shadow-lg bg-white"
-          style={{ border: "1px solid var(--border)", minWidth: 160 }}
-        >
-          <button
-            onClick={() => onMove(deck.id, null)}
-            className="w-full text-left px-4 py-2 text-[13px] transition-colors hover:bg-[var(--bg-2)]"
-            style={{ color: deck.folder_id === null ? "var(--accent-deep)" : "var(--ink)" }}
-          >
+        <div className="absolute left-6 z-10 mt-1 py-1 rounded-xl shadow-lg bg-white" style={{ border: "1px solid var(--border)", minWidth: 160 }}>
+          <button onClick={() => onMove(deck.id, null)} className="w-full text-left px-4 py-2 text-[13px] transition-colors hover:bg-[var(--bg-2)]" style={{ color: deck.folder_id === null ? "var(--accent-deep)" : "var(--ink)" }}>
             No folder
           </button>
           {folders.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => onMove(deck.id, f.id)}
-              className="w-full text-left px-4 py-2 text-[13px] transition-colors hover:bg-[var(--bg-2)]"
-              style={{ color: deck.folder_id === f.id ? "var(--accent-deep)" : "var(--ink)" }}
-            >
+            <button key={f.id} onClick={() => onMove(deck.id, f.id)} className="w-full text-left px-4 py-2 text-[13px] transition-colors hover:bg-[var(--bg-2)]" style={{ color: deck.folder_id === f.id ? "var(--accent-deep)" : "var(--ink)" }}>
               {f.name}
             </button>
           ))}
         </div>
+      )}
+
+      {/* Reorder indicator below */}
+      {isDropTarget && !dragInsertBefore && canReorder && (
+        <div className="absolute -bottom-1.5 left-0 right-0 h-0.5 rounded-full z-10" style={{ background: "var(--accent)" }} />
       )}
     </li>
   );
