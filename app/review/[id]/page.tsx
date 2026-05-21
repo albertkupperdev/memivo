@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { Card, ReviewRating } from "@/types";
+import { formatInterval } from "@/lib/sm2";
+import type { Card, ReviewRating, UserSettings } from "@/types";
+import { DEFAULT_SETTINGS } from "@/types";
 
 function Eyebrow({ children, className = "", style = {} }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
@@ -31,15 +33,17 @@ const RATE_STYLES: Record<ReviewRating, { bg: string; color: string; border: str
   easy:  { bg: "var(--bg-2)",            color: "var(--ink)",             border: "var(--border-strong)" },
 };
 
-const RATE_TIME: Record<ReviewRating, string> = {
-  again: "< 1 min", hard: "6 min", good: "10 min", easy: "4 days",
-};
+function getRateTime(rating: ReviewRating, s: UserSettings): string {
+  const days = { again: s.interval_again, hard: s.interval_hard, good: s.interval_good, easy: s.interval_easy }[rating];
+  return formatInterval(days);
+}
 
 export default function ReviewPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
   const [cards, setCards] = useState<Card[]>([]);
+  const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
   const [chunkMap, setChunkMap] = useState<Map<string, string>>(new Map());
   const [idx, setIdx] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -54,6 +58,7 @@ export default function ReviewPage() {
   useEffect(() => {
     async function load() {
       const supabase = createClient();
+      fetch("/api/settings").then(r => r.json()).then(s => setSettings(s)).catch(() => {});
       const today = new Date().toISOString().split("T")[0];
       const { data: allCards } = await supabase.from("cards").select("*").eq("document_id", id);
       if (!allCards || allCards.length === 0) { setNoCards(true); setLoaded(true); return; }
@@ -318,7 +323,7 @@ export default function ReviewPage() {
                         <KbdKey>{i + 1}</KbdKey>
                       </div>
                       <span className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.14em] opacity-60">
-                        {RATE_TIME[r]}
+                        {getRateTime(r, settings)}
                       </span>
                     </button>
                   );

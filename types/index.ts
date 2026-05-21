@@ -56,3 +56,17 @@ export interface CardReview {
 }
 
 export type ReviewRating = "again" | "hard" | "good" | "easy";
+
+export interface UserSettings {
+  interval_again: number;
+  interval_hard: number;
+  interval_good: number;
+  interval_easy: number;
+}
+
+export const DEFAULT_SETTINGS: UserSettings = {
+  interval_again: 1,
+  interval_hard: 1,
+  interval_good: 1,
+  interval_easy: 6,
+};

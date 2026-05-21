@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { applyReview } from "@/lib/sm2";
-import type { ReviewRating } from "@/types";
+import type { ReviewRating, UserSettings } from "@/types";
 
 const VALID_RATINGS: ReviewRating[] = ["again", "hard", "good", "easy"];
 
@@ -38,8 +38,9 @@ export async function POST(
     .eq("user_id", user.id)
     .single();
 
+  const { data: userSettings } = await supabase.from("user_settings").select("*").eq("user_id", user.id).single();
   const currentState = existing ?? DEFAULT_STATE;
-  const next = applyReview(currentState, rating as ReviewRating);
+  const next = applyReview(currentState, rating as ReviewRating, userSettings as UserSettings ?? undefined);
 
   const { error } = await supabase.from("card_reviews").upsert(
     {
