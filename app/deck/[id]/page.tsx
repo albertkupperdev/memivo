@@ -121,6 +121,13 @@ export default function DeckPage() {
   const [viewMode, setViewMode] = useState<"list" | "grid-small" | "grid-large">("list");
   const [cardSort, setCardSort] = useState<"custom" | "front-asc" | "front-desc" | "date-new" | "date-old">("custom");
 
+  // Selection mode
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [bulkPlaylistId, setBulkPlaylistId] = useState<string | null>(null);
+
   // Card drag-to-reorder
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
   const [dragOverCardId, setDragOverCardId] = useState<string | null>(null);
@@ -423,6 +430,38 @@ export default function DeckPage() {
         body: JSON.stringify({ front: c.front, back: c.back, hint: c.hint, image_url: c.image_url, position: c.position }),
       })
     ));
+  }
+
+  async function bulkDelete() {
+    setBulkDeleting(true);
+    await Promise.all([...selectedIds].map(cardId =>
+      fetch(`/api/cards/${cardId}`, { method: "DELETE" })
+    ));
+    setCards(prev => prev.filter(c => !selectedIds.has(c.id)));
+    setSelectedIds(new Set());
+    setSelectionMode(false);
+    setConfirmBulkDelete(false);
+    setBulkDeleting(false);
+  }
+
+  async function bulkAddToPlaylist(plId: string) {
+    await Promise.all([...selectedIds].map(cardId =>
+      fetch(`/api/playlists/${plId}/cards`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cardId }),
+      })
+    ));
+    setPlaylistCardIds(prev => {
+      const m = new Map(prev);
+      const s = new Set(m.get(plId) ?? []);
+      selectedIds.forEach(id => s.add(id));
+      m.set(plId, s);
+      return m;
+    });
+    setBulkPlaylistId(null);
+    setSelectedIds(new Set());
+    setSelectionMode(false);
   }
 
   async function createPlaylist() {
@@ -896,6 +935,15 @@ export default function DeckPage() {
             <div className="flex items-center gap-3">
               <Eyebrow>{generating ? "Generating…" : `${cards.length} total`}</Eyebrow>
               {!generating && cards.length > 0 && (
+                <button
+                  onClick={() => { setSelectionMode(v => !v); setSelectedIds(new Set()); setConfirmBulkDelete(false); setBulkPlaylistId(null); }}
+                  className="font-mono text-[11px] uppercase tracking-[0.14em] px-2.5 py-1 rounded-full transition-colors"
+                  style={{ background: selectionMode ? "var(--ink)" : "var(--bg-2)", color: selectionMode ? "var(--bg)" : "var(--muted)" }}
+                >
+                  {selectionMode ? "Cancel" : "Select"}
+                </button>
+              )}
+              {!generating && cards.length > 0 && (
                 <select
                   value={cardSort}
                   onChange={(e) => setCardSort(e.target.value as typeof cardSort)}
@@ -1152,7 +1200,10 @@ export default function DeckPage() {
                         opacity: isDragging ? 0.4 : 1,
                         outline: isDropTarget ? "2px solid var(--accent)" : "none",
                         outlineOffset: -2,
+                        cursor: selectionMode ? "pointer" : "default",
+                        background: selectedIds.has(card.id) ? "var(--accent-bg)" : "white",
                       }}
+                      onClick={selectionMode ? () => { const next = new Set(selectedIds); if (next.has(card.id)) next.delete(card.id); else next.add(card.id); setSelectedIds(next); } : undefined}
                       draggable={cardSort === "custom"}
                       onDragStart={(e) => { if (cardSort !== "custom") return; e.dataTransfer.effectAllowed = "move"; setDraggingCardId(card.id); setDragOverCardId(null); }}
                       onDragEnd={() => { setDraggingCardId(null); setDragOverCardId(null); }}
@@ -1161,13 +1212,22 @@ export default function DeckPage() {
                     >
                       {/* Grip + actions row */}
                       <div className="flex items-center justify-between mb-2">
-                        {cardSort === "custom" ? (
+                        {selectionMode ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); const next = new Set(selectedIds); if (next.has(card.id)) next.delete(card.id); else next.add(card.id); setSelectedIds(next); }}
+                            className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 transition-colors"
+                            style={{ background: selectedIds.has(card.id) ? "var(--ink)" : "white", border: `2px solid ${selectedIds.has(card.id) ? "var(--ink)" : "var(--border-strong)"}` }}
+                          >
+                            {selectedIds.has(card.id) && <svg viewBox="0 0 12 12" className="w-3 h-3" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 6l3 3 5-5"/></svg>}
+                          </button>
+                        ) : cardSort === "custom" ? (
                           <svg viewBox="0 0 10 16" className="w-2.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing flex-shrink-0" fill="currentColor" style={{ color: "var(--border-strong)" }}>
                             <circle cx="2" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/>
                             <circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/>
                             <circle cx="2" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/>
                           </svg>
                         ) : <span />}
+
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button onClick={() => startEditCard(card)} className="p-1 rounded hover:bg-[var(--bg-2)]" style={{ color: "var(--muted)" }} title="Edit"><PencilIcon /></button>
                           <button onClick={() => { setEditingCardId(null); setConfirmDeleteCardId(card.id); }} className="p-1 rounded hover:bg-[var(--bg-2)]" style={{ color: "var(--muted)" }} title="Delete"><TrashIcon /></button>
@@ -1234,7 +1294,8 @@ export default function DeckPage() {
                 <li
                   key={card.id}
                   className="group relative py-7"
-                  style={{ borderTop: `2px solid ${dragOverCardId === card.id && dragCardBefore ? "var(--accent)" : "var(--border)"}`, ...(i === filtered.length - 1 ? { borderBottom: `2px solid ${dragOverCardId === card.id && !dragCardBefore ? "var(--accent)" : "var(--border)"}` } : {}), opacity: draggingCardId === card.id ? 0.4 : 1 }}
+                  onClick={selectionMode ? () => { const next = new Set(selectedIds); if (next.has(card.id)) next.delete(card.id); else next.add(card.id); setSelectedIds(next); } : undefined}
+                  style={{ borderTop: `2px solid ${dragOverCardId === card.id && dragCardBefore ? "var(--accent)" : "var(--border)"}`, ...(i === filtered.length - 1 ? { borderBottom: `2px solid ${dragOverCardId === card.id && !dragCardBefore ? "var(--accent)" : "var(--border)"}` } : {}), opacity: draggingCardId === card.id ? 0.4 : 1, cursor: selectionMode ? "pointer" : "default", background: selectedIds.has(card.id) ? "var(--accent-bg)" : undefined }}
                   draggable={cardSort === "custom"}
                   onDragStart={(e) => { if (cardSort !== "custom") return; e.dataTransfer.effectAllowed = "move"; setDraggingCardId(card.id); setDragOverCardId(null); }}
                   onDragEnd={() => { setDraggingCardId(null); setDragOverCardId(null); }}
@@ -1387,6 +1448,24 @@ export default function DeckPage() {
                   ) : (
                     <div className="flex items-start gap-6">
                       <div className="flex-shrink-0 flex flex-col items-center gap-1.5 mt-1.5 w-8">
+                        {selectionMode ? (
+                          <button
+                            onClick={() => {
+                              const next = new Set(selectedIds);
+                              if (next.has(card.id)) next.delete(card.id); else next.add(card.id);
+                              setSelectedIds(next);
+                            }}
+                            className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 transition-colors"
+                            style={{ background: selectedIds.has(card.id) ? "var(--ink)" : "white", border: `2px solid ${selectedIds.has(card.id) ? "var(--ink)" : "var(--border-strong)"}` }}
+                          >
+                            {selectedIds.has(card.id) && (
+                              <svg viewBox="0 0 12 12" className="w-3 h-3" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M2 6l3 3 5-5"/>
+                              </svg>
+                            )}
+                          </button>
+                        ) : (
+                        <>
                         <svg viewBox="0 0 10 16" className="w-2.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing" fill="currentColor" style={{ color: "var(--border-strong)" }}>
                           <circle cx="2" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/>
                           <circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/>
@@ -1395,6 +1474,8 @@ export default function DeckPage() {
                         <span className="font-mono text-[11px] uppercase tracking-[0.14em] tabular-nums" style={{ color: "var(--soft)" }}>
                           {String(i + 1).padStart(2, "0")}
                         </span>
+                        </>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-4">
@@ -1486,6 +1567,51 @@ export default function DeckPage() {
         </div>
       </div>
       </div>
+
+      {/* Floating selection action bar */}
+      {selectionMode && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-lg" style={{ background: "var(--ink)", color: "var(--bg)" }}>
+          <span className="font-mono text-[12px] uppercase tracking-[0.12em]">{selectedIds.size} selected</span>
+          <div className="w-px h-4 opacity-30" style={{ background: "var(--bg)" }} />
+          {confirmBulkDelete ? (
+            <>
+              <span className="text-[13px] opacity-80">Delete {selectedIds.size} cards?</span>
+              <button onClick={bulkDelete} disabled={bulkDeleting} className="px-3 py-1 rounded-lg text-[13px] font-medium disabled:opacity-50" style={{ background: "var(--complement)", color: "white" }}>
+                {bulkDeleting ? "Deleting…" : "Confirm"}
+              </button>
+              <button onClick={() => setConfirmBulkDelete(false)} className="px-3 py-1 rounded-lg text-[13px] font-medium opacity-60">Cancel</button>
+            </>
+          ) : bulkPlaylistId !== null ? (
+            <>
+              <span className="text-[13px] opacity-80">Add to:</span>
+              {playlists.map(pl => (
+                <button key={pl.id} onClick={() => bulkAddToPlaylist(pl.id)} className="px-3 py-1 rounded-lg text-[13px] font-medium" style={{ background: "rgba(255,255,255,0.15)" }}>{pl.name}</button>
+              ))}
+              <button onClick={() => setBulkPlaylistId(null)} className="px-3 py-1 rounded-lg text-[13px] font-medium opacity-60">Cancel</button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setSelectedIds(new Set(cards.map(c => c.id)))}
+                className="px-3 py-1 rounded-lg text-[13px] font-medium opacity-70 hover:opacity-100 transition-opacity"
+                style={{ background: "rgba(255,255,255,0.1)" }}
+              >
+                All
+              </button>
+              {playlists.length > 0 && selectedIds.size > 0 && (
+                <button onClick={() => setBulkPlaylistId("pick")} className="px-3 py-1 rounded-lg text-[13px] font-medium" style={{ background: "rgba(255,255,255,0.15)" }}>
+                  Add to playlist
+                </button>
+              )}
+              {selectedIds.size > 0 && (
+                <button onClick={() => setConfirmBulkDelete(true)} className="px-3 py-1 rounded-lg text-[13px] font-medium" style={{ background: "var(--complement)", color: "white" }}>
+                  Delete
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
