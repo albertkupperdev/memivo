@@ -740,7 +740,7 @@ export default function DeckPage() {
 
       {/* Scrollable content — padded to sit below fixed hero */}
       <div style={{ paddingTop: heroHeight }}>
-      <div className="max-w-4xl mx-auto px-6 pt-8 pb-10">
+      <div className="max-w-4xl mx-auto px-6 pt-8 pb-40">
         <Link
           href="/dashboard"
           className="inline-flex items-center gap-2 mb-8 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
