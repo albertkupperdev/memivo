@@ -654,7 +654,7 @@ export default function DeckPage() {
                   <button onClick={saveHardWords}
                     className="font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
                     style={{ color: "var(--complement-deep)" }}>
-                    Save hard words
+                    Save hard cards
                   </button>
                 )}
               </div>
