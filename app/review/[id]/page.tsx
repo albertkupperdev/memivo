@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatInterval } from "@/lib/sm2";
 import type { Card, ReviewRating, UserSettings } from "@/types";
@@ -41,6 +41,8 @@ function getRateTime(rating: ReviewRating, s: UserSettings): string {
 export default function ReviewPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : null;
 
   const [cards, setCards] = useState<Card[]>([]);
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
@@ -64,7 +66,8 @@ export default function ReviewPage() {
       if (!allCards || allCards.length === 0) { setNoCards(true); setLoaded(true); return; }
       const { data: reviews } = await supabase.from("card_reviews").select("card_id, due_date").in("card_id", allCards.map((c) => c.id));
       const reviewedMap = new Map(reviews?.map((r) => [r.card_id, r.due_date]));
-      const due = allCards.filter((c) => { const d = reviewedMap.get(c.id); return !d || d <= today; });
+      const allDue = allCards.filter((c) => { const d = reviewedMap.get(c.id); return !d || d <= today; });
+      const due = limit ? allDue.slice(0, limit) : allDue;
 
       const { data: chunks } = await supabase
         .from("chunks")

@@ -73,6 +73,9 @@ export default function DeckPage() {
   const [addingSourceLoading, setAddingSourceLoading] = useState(false);
   const [addingSourceError, setAddingSourceError] = useState<string | null>(null);
 
+  // Session size
+  const [sessionLimit, setSessionLimit] = useState<number | null>(null);
+
   // Scroll-aware header
   const [scrolled, setScrolled] = useState(false);
   const [heroHeight, setHeroHeight] = useState(0);
@@ -422,7 +425,7 @@ export default function DeckPage() {
           {/* Action buttons */}
           <div className={`flex flex-wrap gap-2 ${scrolled ? "mt-2" : "mt-4"}`}>
             <button
-              onClick={() => router.push(`/review/${id}`)}
+              onClick={() => router.push(`/review/${id}${sessionLimit ? `?limit=${sessionLimit}` : ""}`)}
               disabled={generating || cards.length === 0}
               className={`flex-1 inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-colors ${scrolled ? "px-4 py-1.5 text-[13px]" : "px-4 py-2.5 text-[14px]"}`}
               style={{
@@ -460,6 +463,36 @@ export default function DeckPage() {
               </button>
             )}
           </div>
+
+          {/* Session size picker — only when not scrolled and cards exist */}
+          {!scrolled && dueCount > 0 && !confirming && (
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              <Eyebrow>Session</Eyebrow>
+              {[10, 25, 50].filter(n => n < dueCount).map(n => (
+                <button
+                  key={n}
+                  onClick={() => setSessionLimit(sessionLimit === n ? null : n)}
+                  className="font-mono text-[11px] uppercase tracking-[0.14em] px-2.5 py-1 rounded-full transition-colors"
+                  style={{
+                    background: sessionLimit === n ? "var(--ink)" : "var(--bg-2)",
+                    color: sessionLimit === n ? "var(--bg)" : "var(--muted)",
+                  }}
+                >
+                  {n}
+                </button>
+              ))}
+              <button
+                onClick={() => setSessionLimit(null)}
+                className="font-mono text-[11px] uppercase tracking-[0.14em] px-2.5 py-1 rounded-full transition-colors"
+                style={{
+                  background: sessionLimit === null ? "var(--ink)" : "var(--bg-2)",
+                  color: sessionLimit === null ? "var(--bg)" : "var(--muted)",
+                }}
+              >
+                All {dueCount}
+              </button>
+            </div>
+          )}
 
           {/* Delete confirmation — only when not scrolled */}
           {confirming && !scrolled && (
