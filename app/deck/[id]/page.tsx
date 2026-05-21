@@ -80,7 +80,7 @@ export default function DeckPage() {
 
   // Card list UI
   const [cardSearch, setCardSearch] = useState("");
-  const [gridView, setGridView] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "grid-small" | "grid-large">("list");
 
   // Playlist UI
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
@@ -814,22 +814,21 @@ export default function DeckPage() {
             <div className="flex items-center gap-3">
               <Eyebrow>{generating ? "Generating…" : `${cards.length} total`}</Eyebrow>
               {!generating && cards.length > 0 && (
-                <button
-                  onClick={() => setGridView(v => !v)}
-                  className="transition-colors"
-                  style={{ color: gridView ? "var(--ink)" : "var(--muted)" }}
-                  title={gridView ? "List view" : "Grid view"}
-                >
-                  {gridView ? (
-                    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
-                    </svg>
-                  )}
-                </button>
+                <div className="flex items-center gap-1">
+                  {([
+                    { mode: "list", title: "List", icon: <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/> },
+                    { mode: "grid-small", title: "Small grid", icon: <><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></> },
+                    { mode: "grid-large", title: "Large grid", icon: <><rect x="3" y="3" width="8" height="11"/><rect x="13" y="3" width="8" height="11"/><rect x="3" y="16" width="18" height="5"/></> },
+                  ] as const).map(({ mode, title, icon }) => (
+                    <button key={mode} onClick={() => setViewMode(mode)} title={title}
+                      className="p-1 rounded transition-colors"
+                      style={{ color: viewMode === mode ? "var(--ink)" : "var(--muted)", background: viewMode === mode ? "var(--bg-2)" : "transparent" }}>
+                      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        {icon}
+                      </svg>
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -967,15 +966,31 @@ export default function DeckPage() {
                 <Eyebrow>No cards match "{cardSearch}"</Eyebrow>
               </div>
             );
-            if (gridView) return (
+            if (viewMode === "grid-small") return (
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                 {filtered.map((card) => (
-                  <div key={card.id} className="bg-white rounded-2xl p-5 flex flex-col gap-3" style={{ border: "1px solid var(--border)" }}>
-                    <p className="font-serif text-[16px] leading-snug text-[var(--ink)]">{card.front}</p>
-                    <p className="text-[13px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
+                  <div key={card.id} className="bg-white rounded-2xl p-4 flex flex-col gap-2" style={{ border: "1px solid var(--border)" }}>
+                    <p className="font-serif text-[15px] leading-snug text-[var(--ink)]">{card.front}</p>
+                    <p className="text-[12px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
                     {card.hint && (
-                      <p className="text-[12px]" style={{ color: "var(--muted)" }}>
+                      <p className="text-[11px]" style={{ color: "var(--muted)" }}>
                         <span className="font-mono text-[10px] uppercase tracking-[0.14em] mr-1" style={{ color: "var(--soft)" }}>Hint</span>
+                        {card.hint}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+            if (viewMode === "grid-large") return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {filtered.map((card) => (
+                  <div key={card.id} className="bg-white rounded-2xl p-6 flex flex-col gap-3" style={{ border: "1px solid var(--border)" }}>
+                    <p className="font-serif text-[20px] leading-snug text-[var(--ink)]">{card.front}</p>
+                    <p className="text-[14.5px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
+                    {card.hint && (
+                      <p className="text-[13px]" style={{ color: "var(--muted)" }}>
+                        <span className="font-mono text-[10px] uppercase tracking-[0.14em] mr-1.5" style={{ color: "var(--soft)" }}>Hint</span>
                         {card.hint}
                       </p>
                     )}
