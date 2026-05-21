@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import DocumentUploader from "@/components/DocumentUploader";
@@ -66,6 +66,10 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
   const [dragOverTarget, setDragOverTarget] = useState<string | null>(null);
   const [dragOverDeckId, setDragOverDeckId] = useState<string | null>(null);
   const [dragInsertBefore, setDragInsertBefore] = useState(true);
+  // Refs for drop handlers to avoid stale closures in concurrent mode
+  const draggingRef = useRef<string | null>(null);
+  const dragOverDeckRef = useRef<string | null>(null);
+  const dragInsertBeforeRef = useRef(true);
 
   // Search
   const [query, setQuery] = useState("");
@@ -153,16 +157,20 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
     ));
   }
 
-  function handleDeckDrop(sectionDecks: DeckWithStats[], targetDeckId: string, before: boolean) {
-    if (!draggingDeckId || draggingDeckId === targetDeckId) return;
-    const dragged = decks.find((d) => d.id === draggingDeckId);
+  function handleDeckDrop(sectionDecks: DeckWithStats[], targetDeckId: string) {
+    const draggedId = draggingRef.current;
+    const before = dragInsertBeforeRef.current;
+    if (!draggedId || draggedId === targetDeckId) return;
+    const dragged = decks.find((d) => d.id === draggedId);
     const target = decks.find((d) => d.id === targetDeckId);
     if (!dragged || !target) return;
     if (dragged.folder_id === target.folder_id && sortBy === "custom") {
-      reorderSection(sectionDecks, draggingDeckId, targetDeckId, before);
+      reorderSection(sectionDecks, draggedId, targetDeckId, before);
     } else if (dragged.folder_id !== target.folder_id) {
-      moveDeck(draggingDeckId, target.folder_id);
+      moveDeck(draggedId, target.folder_id);
     }
+    draggingRef.current = null;
+    dragOverDeckRef.current = null;
     setDragOverDeckId(null);
     setDraggingDeckId(null);
   }
@@ -346,8 +354,10 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
                   onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverTarget(null); }}
                   onDrop={(e) => {
                     e.preventDefault();
-                    if (dragOverDeckId) return;
-                    if (draggingDeckId) moveDeck(draggingDeckId, folder.id);
+                    if (dragOverDeckRef.current) return;
+                    const id = draggingRef.current;
+                    if (id) moveDeck(id, folder.id);
+                    draggingRef.current = null;
                     setDragOverTarget(null);
                     setDraggingDeckId(null);
                   }}
@@ -403,11 +413,11 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
                           openMoveId={openMoveId}
                           setOpenMoveId={setOpenMoveId}
                           onMove={moveDeck}
-                          onDragStart={(id) => { setDraggingDeckId(id); setDragOverDeckId(null); }}
-                          onDragEnd={() => { setDraggingDeckId(null); setDragOverDeckId(null); setDragOverTarget(null); }}
+                          onDragStart={(id) => { draggingRef.current = id; setDraggingDeckId(id); setDragOverDeckId(null); }}
+                          onDragEnd={() => { draggingRef.current = null; dragOverDeckRef.current = null; setDraggingDeckId(null); setDragOverDeckId(null); setDragOverTarget(null); }}
                           isDragging={draggingDeckId === deck.id}
-                          onDragOverDeck={(id, before) => { setDragOverDeckId(id); setDragInsertBefore(before); setDragOverTarget(null); }}
-                          onDropOnDeck={(targetId, before) => { handleDeckDrop(folderDecks, targetId, before); }}
+                          onDragOverDeck={(id, before) => { dragOverDeckRef.current = id; dragInsertBeforeRef.current = before; setDragOverDeckId(id); setDragInsertBefore(before); setDragOverTarget(null); }}
+                          onDropOnDeck={(targetId) => { handleDeckDrop(folderDecks, targetId); }}
                           dragOverDeckId={dragOverDeckId}
                           dragInsertBefore={dragInsertBefore}
                           canReorder={sortBy === "custom"}
@@ -430,8 +440,10 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
                 onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverTarget(null); }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  if (dragOverDeckId) return;
-                  if (draggingDeckId) moveDeck(draggingDeckId, null);
+                  if (dragOverDeckRef.current) return;
+                  const id = draggingRef.current;
+                  if (id) moveDeck(id, null);
+                  draggingRef.current = null;
                   setDragOverTarget(null);
                   setDraggingDeckId(null);
                 }}
@@ -465,7 +477,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
                       onDragEnd={() => { setDraggingDeckId(null); setDragOverDeckId(null); setDragOverTarget(null); }}
                       isDragging={draggingDeckId === deck.id}
                       onDragOverDeck={(id, before) => { setDragOverDeckId(id); setDragInsertBefore(before); setDragOverTarget(null); }}
-                      onDropOnDeck={(targetId, before) => { handleDeckDrop(unfiledDecks, targetId, before); }}
+                      onDropOnDeck={(targetId) => { handleDeckDrop(unfiledDecks, targetId); }}
                       dragOverDeckId={dragOverDeckId}
                       dragInsertBefore={dragInsertBefore}
                       canReorder={sortBy === "custom"}
@@ -503,7 +515,7 @@ function DeckCard({
   onDragEnd: () => void;
   isDragging: boolean;
   onDragOverDeck: (id: string, before: boolean) => void;
-  onDropOnDeck: (targetId: string, before: boolean) => void;
+  onDropOnDeck: (targetId: string) => void;
   dragOverDeckId: string | null;
   dragInsertBefore: boolean;
   canReorder: boolean;
@@ -551,7 +563,7 @@ function DeckCard({
             onDragOverDeck(deck.id, e.clientY < rect.top + rect.height / 2);
           }}
           onDragLeave={() => {}}
-          onDrop={(e) => { e.preventDefault(); e.stopPropagation(); onDropOnDeck(deck.id, dragInsertBefore); }}
+          onDrop={(e) => { e.preventDefault(); e.stopPropagation(); onDropOnDeck(deck.id); }}
           className="group block bg-white rounded-2xl p-6 transition-all relative overflow-hidden"
           style={{ border: "1px solid var(--border)", opacity: isDragging ? 0.4 : 1 }}
         >
