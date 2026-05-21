@@ -111,6 +111,11 @@ export default function DeckPage() {
   const [cardSearch, setCardSearch] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "grid-small" | "grid-large">("list");
 
+  // Card drag-to-reorder
+  const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
+  const [dragOverCardId, setDragOverCardId] = useState<string | null>(null);
+  const [dragCardBefore, setDragCardBefore] = useState(true);
+
   // Playlist UI
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
@@ -165,7 +170,7 @@ export default function DeckPage() {
         setPlaylistCardIds(map);
       }
 
-      const { data: existing } = await supabase.from("cards").select("*").eq("document_id", id);
+      const { data: existing } = await supabase.from("cards").select("*").eq("document_id", id).order("position", { ascending: true, nullsFirst: false });
       if (existing && existing.length > 0) {
         setCards(existing);
         const today = new Date().toISOString().split("T")[0];
@@ -374,6 +379,25 @@ export default function DeckPage() {
       }
     }
     setCreatingCard(false);
+  }
+
+  async function reorderCards(draggedId: string, targetId: string, before: boolean) {
+    const without = cards.filter(c => c.id !== draggedId);
+    const dragged = cards.find(c => c.id === draggedId)!;
+    const targetIdx = without.findIndex(c => c.id === targetId);
+    const insertAt = before ? targetIdx : targetIdx + 1;
+    without.splice(insertAt, 0, dragged);
+    const reordered = without.map((c, i) => ({ ...c, position: i }));
+    setCards(reordered);
+    setDraggingCardId(null);
+    setDragOverCardId(null);
+    await Promise.all(reordered.map(c =>
+      fetch(`/api/cards/${c.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ front: c.front, back: c.back, hint: c.hint, image_url: c.image_url, position: c.position }),
+      })
+    ));
   }
 
   async function createPlaylist() {
@@ -1063,8 +1087,13 @@ export default function DeckPage() {
               {filtered.map((card, i) => (
                 <li
                   key={card.id}
-                  className="group py-7"
-                  style={{ borderTop: "1px solid var(--border)", ...(i === cards.length - 1 ? { borderBottom: "1px solid var(--border)" } : {}) }}
+                  className="group relative py-7"
+                  style={{ borderTop: `2px solid ${dragOverCardId === card.id && dragCardBefore ? "var(--accent)" : "var(--border)"}`, ...(i === filtered.length - 1 ? { borderBottom: `2px solid ${dragOverCardId === card.id && !dragCardBefore ? "var(--accent)" : "var(--border)"}` } : {}), opacity: draggingCardId === card.id ? 0.4 : 1 }}
+                  draggable
+                  onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; setDraggingCardId(card.id); setDragOverCardId(null); }}
+                  onDragEnd={() => { setDraggingCardId(null); setDragOverCardId(null); }}
+                  onDragOver={(e) => { e.preventDefault(); const rect = e.currentTarget.getBoundingClientRect(); setDragOverCardId(card.id); setDragCardBefore(e.clientY < rect.top + rect.height / 2); }}
+                  onDrop={(e) => { e.preventDefault(); if (draggingCardId && draggingCardId !== card.id) reorderCards(draggingCardId, card.id, dragCardBefore); }}
                 >
                   {editingCardId === card.id ? (
                     <div className="flex items-start gap-6">
@@ -1180,9 +1209,16 @@ export default function DeckPage() {
                     </div>
                   ) : (
                     <div className="flex items-start gap-6">
-                      <span className="flex-shrink-0 font-mono text-[11px] uppercase tracking-[0.14em] tabular-nums mt-1.5 w-8" style={{ color: "var(--soft)" }}>
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
+                      <div className="flex-shrink-0 flex flex-col items-center gap-1.5 mt-1.5 w-8">
+                        <svg viewBox="0 0 10 16" className="w-2.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing" fill="currentColor" style={{ color: "var(--border-strong)" }}>
+                          <circle cx="2" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/>
+                          <circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/>
+                          <circle cx="2" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/>
+                        </svg>
+                        <span className="font-mono text-[11px] uppercase tracking-[0.14em] tabular-nums" style={{ color: "var(--soft)" }}>
+                          {String(i + 1).padStart(2, "0")}
+                        </span>
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-4">
                           <p className="font-serif text-[20px] leading-[1.3] text-[var(--ink)]">{card.front}</p>
