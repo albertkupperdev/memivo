@@ -157,14 +157,6 @@ export default function ReviewPage() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
-  // Stop timer when session completes
-  useEffect(() => {
-    if (done && timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  }, [done]);
-
   // Fetch streak
   useEffect(() => {
     fetch("/api/activity").then(r => r.json()).then((activities: { review_date: string }[]) => {
@@ -185,6 +177,14 @@ export default function ReviewPage() {
 
   const total = cards.length;
   const done = idx >= total;
+
+  // Stop timer when session completes
+  useEffect(() => {
+    if (done && timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, [done]);
 
   // Save activity when session completes
   useEffect(() => {
