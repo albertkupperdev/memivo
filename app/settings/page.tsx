@@ -117,8 +117,7 @@ export default function SettingsPage() {
           Dashboard
         </Link>
 
-        <Eyebrow>Settings</Eyebrow>
-        <h1 className="mt-3 font-serif text-[44px] leading-[1.05] text-[var(--ink)]">Review intervals</h1>
+        <h1 className="font-serif text-[44px] leading-[1.05] text-[var(--ink)]">Review intervals</h1>
         <p className="mt-3 text-[15px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>
           Customize how long until a card comes back after each rating. SM-2 takes over automatically after the first two reviews.
         </p>
