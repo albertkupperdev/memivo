@@ -481,33 +481,6 @@ export default function DeckPage() {
     }
   }
 
-  async function saveHardWords() {
-    const supabase = (await import("@/lib/supabase/client")).createClient();
-    const { data: reviews } = await supabase
-      .from("card_reviews")
-      .select("card_id, repetitions, ease_factor")
-      .in("card_id", cards.map(c => c.id));
-    const hardIds = (reviews ?? [])
-      .filter(r => r.repetitions === 0 || r.ease_factor < 2.0)
-      .map(r => r.card_id);
-    if (hardIds.length === 0) return;
-    const res = await fetch("/api/playlists", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ documentId: id, name: "Hard cards" }),
-    });
-    if (!res.ok) return;
-    const pl = await res.json();
-    await Promise.all(hardIds.map(cardId =>
-      fetch(`/api/playlists/${pl.id}/cards`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cardId }),
-      })
-    ));
-    setPlaylists(prev => [...prev, pl]);
-    setPlaylistCardIds(prev => new Map(prev).set(pl.id, new Set(hardIds)));
-  }
 
   if (error) {
     return (
@@ -764,13 +737,6 @@ export default function DeckPage() {
                     style={{ color: "var(--accent-deep)" }}>
                     <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
                     New playlist
-                  </button>
-                )}
-                {cards.length > 0 && (
-                  <button onClick={saveHardWords}
-                    className="font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
-                    style={{ color: "var(--complement-deep)" }}>
-                    Save hard cards
                   </button>
                 )}
               </div>
