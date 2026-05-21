@@ -13,11 +13,11 @@ export default function NavBar() {
     >
       <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
         <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="relative w-[28px] h-[28px] flex items-center justify-center flex-shrink-0">
+          <div className="relative w-[28px] h-[28px] flex-shrink-0">
             <span className="absolute inset-0 rounded-full" style={{ background: "var(--accent)" }} />
-            <span className="relative font-serif text-[var(--ink)] text-sm leading-none">S</span>
+            <span className="absolute inset-0 flex items-center justify-center font-serif text-sm text-[var(--ink)]" style={{ paddingTop: "1px" }}>S</span>
           </div>
-          <span className="font-serif text-[18px] text-[var(--ink)] leading-none">Studyform</span>
+          <span className="font-serif text-[18px] text-[var(--ink)]" style={{ lineHeight: 1 }}>Studyform</span>
         </Link>
         <Link href="/settings" className="transition-colors hover:opacity-70" style={{ color: "var(--ink)" }} title="Settings">
           <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
