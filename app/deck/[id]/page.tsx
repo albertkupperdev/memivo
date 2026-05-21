@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -425,7 +425,7 @@ export default function DeckPage() {
       setPlaylistCardIds(prev => {
         const m = new Map(prev);
         const s = new Set(m.get(plId) ?? []);
-        inPlaylist ? s.delete(cardId) : s.add(cardId);
+        if (inPlaylist) { s.delete(cardId); } else { s.add(cardId); }
         m.set(plId, s);
         return m;
       });
@@ -728,7 +728,7 @@ export default function DeckPage() {
                     {confirmDeletePlaylistId === pl.id ? (
                       <div className="flex items-center justify-between gap-4">
                         <p className="text-[14px]" style={{ color: "var(--complement-deeper)" }}>
-                          Delete <span className="font-medium text-[var(--ink)]">"{pl.name}"</span>?
+                          Delete <span className="font-medium text-[var(--ink)]">&ldquo;{pl.name}&rdquo;</span>?
                         </p>
                         <div className="flex gap-2 shrink-0">
                           <button onClick={() => { deletePlaylist(pl.id); setConfirmDeletePlaylistId(null); }}
@@ -1021,7 +1021,7 @@ export default function DeckPage() {
               : cards;
             if (q && filtered.length === 0) return (
               <div className="py-10 text-center">
-                <Eyebrow>No cards match "{cardSearch}"</Eyebrow>
+                <Eyebrow>No cards match &ldquo;{cardSearch}&rdquo;</Eyebrow>
               </div>
             );
             if (viewMode === "grid-small") return (
