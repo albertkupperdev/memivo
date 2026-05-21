@@ -80,6 +80,7 @@ export default function DeckPage() {
   const [editFront, setEditFront] = useState("");
   const [editBack, setEditBack] = useState("");
   const [editHint, setEditHint] = useState("");
+  const [editRequireDrawing, setEditRequireDrawing] = useState(false);
   const [editImagePath, setEditImagePath] = useState<string | null>(null);
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
@@ -96,6 +97,7 @@ export default function DeckPage() {
   const [newImageFile, setNewImageFile] = useState<File | null>(null);
   const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
   const [showDrawingNew, setShowDrawingNew] = useState(false);
+  const [newRequireDrawing, setNewRequireDrawing] = useState(false);
   const [creatingCard, setCreatingCard] = useState(false);
 
   // Add source
@@ -249,6 +251,7 @@ export default function DeckPage() {
     setEditImageFile(null);
     setEditImagePreview(null);
     setShowDrawingEdit(false);
+    setEditRequireDrawing(card.require_drawing ?? false);
   }
 
   async function saveCard() {
@@ -258,7 +261,7 @@ export default function DeckPage() {
     const res = await fetch(`/api/cards/${editingCardId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ front: editFront, back: editBack, hint: editHint || null, image_url: editImageFile ? await uploadCardImage(editImageFile) : editImagePath }),
+      body: JSON.stringify({ front: editFront, back: editBack, hint: editHint || null, image_url: editImageFile ? await uploadCardImage(editImageFile) : editImagePath, require_drawing: editRequireDrawing }),
     });
     if (res.ok) {
       const updated = await res.json();
@@ -369,7 +372,7 @@ export default function DeckPage() {
     const res = await fetch("/api/cards", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ documentId: id, front: newFront, back: newBack, image_url: newImageFile ? await uploadCardImage(newImageFile) : null }),
+      body: JSON.stringify({ documentId: id, front: newFront, back: newBack, image_url: newImageFile ? await uploadCardImage(newImageFile) : null, require_drawing: newRequireDrawing }),
     });
     if (res.ok) {
       const card = await res.json();
@@ -378,6 +381,7 @@ export default function DeckPage() {
       setNewBack("");
       setNewImageFile(null);
       setNewImagePreview(null);
+      setNewRequireDrawing(false);
       if (!andAnother) {
         setAddingCard(false);
       } else {
@@ -998,6 +1002,16 @@ export default function DeckPage() {
                 )}
               </div>
 
+              <div className="mt-4 flex items-center justify-between gap-4">
+                <span className="text-[13px]" style={{ color: "var(--muted)" }}>Draw answer mode</span>
+                <button onClick={() => setNewRequireDrawing(v => !v)}
+                  className="relative flex-shrink-0 w-10 h-5 rounded-full transition-colors"
+                  style={{ background: newRequireDrawing ? "var(--ink)" : "var(--border-strong)" }}>
+                  <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform"
+                    style={{ transform: newRequireDrawing ? "translateX(20px)" : "translateX(0)" }} />
+                </button>
+              </div>
+
               <div className="mt-4 flex gap-2 flex-wrap">
                 <button
                   onClick={() => createCard(false)}
@@ -1221,6 +1235,15 @@ export default function DeckPage() {
                               </button>
                             </div>
                           )}
+                        </div>
+                        <div className="mt-4 flex items-center justify-between gap-4">
+                          <span className="text-[13px]" style={{ color: "var(--muted)" }}>Draw answer mode</span>
+                          <button onClick={() => setEditRequireDrawing(v => !v)}
+                            className="relative flex-shrink-0 w-10 h-5 rounded-full transition-colors"
+                            style={{ background: editRequireDrawing ? "var(--ink)" : "var(--border-strong)" }}>
+                            <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform"
+                              style={{ transform: editRequireDrawing ? "translateX(20px)" : "translateX(0)" }} />
+                          </button>
                         </div>
                         <div className="mt-4 flex items-center gap-2 flex-wrap">
                           <button

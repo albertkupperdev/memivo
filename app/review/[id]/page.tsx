@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import dynamic from "next/dynamic";
+const DrawingCanvas = dynamic(() => import("@/components/DrawingCanvas"), { ssr: false });
 
 function CardImage({ path }: { path: string }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -65,6 +67,7 @@ export default function ReviewPage() {
   const [typedAnswer, setTypedAnswer] = useState("");
   const [answerChecked, setAnswerChecked] = useState(false);
   const [typeInActive, setTypeInActive] = useState(false);
+  const [drawingActive, setDrawingActive] = useState(false);
   const [ratings, setRatings] = useState<ReviewRating[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -118,6 +121,7 @@ export default function ReviewPage() {
     setTypedAnswer("");
     setAnswerChecked(false);
     setTypeInActive(settings.type_in_answer);
+    setDrawingActive(false);
     setSubmitting(false);
   }
 
@@ -332,7 +336,22 @@ export default function ReviewPage() {
 
           <div className="mt-6">
             {!revealed ? (
-              typeInActive ? (
+              drawingActive || card.require_drawing ? (
+                <div className="flex flex-col gap-3">
+                  <DrawingCanvas
+                    onSave={() => {}}
+                    onCancel={() => setDrawingActive(false)}
+                  />
+                  <button
+                    onClick={() => setRevealed(true)}
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-3.5 text-[15px] font-medium rounded-2xl transition-colors"
+                    style={{ background: "var(--ink)", color: "var(--bg)" }}
+                  >
+                    Show answer
+                    <span className="text-[22px] leading-none opacity-60">␣</span>
+                  </button>
+                </div>
+              ) : typeInActive ? (
                 <div className="flex flex-col gap-2">
                   <textarea
                     value={typedAnswer}
@@ -380,6 +399,16 @@ export default function ReviewPage() {
                   >
                     Type answer
                     <KbdKey>↵</KbdKey>
+                  </button>
+                  <button
+                    onClick={() => setDrawingActive(true)}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-4 text-[14px] font-medium rounded-2xl transition-colors"
+                    style={{ background: "var(--bg-2)", color: "var(--muted)" }}
+                  >
+                    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                    </svg>
+                    Draw
                   </button>
                 </div>
               )

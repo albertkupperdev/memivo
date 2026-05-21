@@ -50,6 +50,7 @@ export interface Card {
   hint: string | null;
   image_url: string | null;
   position: number | null;
+  require_drawing: boolean;
   created_at: string;
 }
 
