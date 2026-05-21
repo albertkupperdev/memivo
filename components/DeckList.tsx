@@ -43,6 +43,9 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
   // Deck → folder assignment
   const [openMoveId, setOpenMoveId] = useState<string | null>(null);
 
+  // Search
+  const [query, setQuery] = useState("");
+
   // Drag and drop
   const [draggingDeckId, setDraggingDeckId] = useState<string | null>(null);
   const [dragOverTarget, setDragOverTarget] = useState<string | null>(null); // folder id or "unfiled"
@@ -104,7 +107,12 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
     });
   }
 
-  const unfiledDecks = decks.filter((d) => !d.folder_id);
+  const q = query.trim().toLowerCase();
+  const filteredDecks = q ? decks.filter((d) => d.title.toLowerCase().includes(q)) : decks;
+  const filteredFolders = q
+    ? folders.filter((f) => f.name.toLowerCase().includes(q) || filteredDecks.some((d) => d.folder_id === f.id))
+    : folders;
+  const unfiledDecks = filteredDecks.filter((d) => !d.folder_id);
   const folderMap = new Map(folders.map((f) => [f.id, f]));
 
   return (
@@ -133,6 +141,30 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
             <StatCell label="Decks" value={decks.length} />
             <StatCell label="Cards" value={totalCards} />
             <StatCell label="Due now" value={totalDue} accent={totalDue > 0} />
+          </div>
+
+          <div className="mt-5 relative">
+            <svg viewBox="0 0 24 24" className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--muted)" }}>
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search decks and folders…"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl text-[14px] bg-white outline-none transition-all"
+              style={{ border: "1px solid var(--border)", color: "var(--ink)" }}
+            />
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2"
+                style={{ color: "var(--muted)" }}
+              >
+                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6 6 18M6 6l12 12"/>
+                </svg>
+              </button>
+            )}
           </div>
         </header>
 
@@ -208,7 +240,11 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
           </div>
         )}
 
-        {decks.length === 0 && folders.length === 0 ? (
+        {q && filteredDecks.length === 0 && filteredFolders.length === 0 ? (
+          <div className="py-12 text-center">
+            <Eyebrow>No results for "{query}"</Eyebrow>
+          </div>
+        ) : decks.length === 0 && folders.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 text-center" style={{ border: "1px solid var(--border)" }}>
             <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-6" style={{ background: "var(--accent-bg)", color: "var(--accent-deep)" }}>
               <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -225,8 +261,8 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
         ) : (
           <div className="flex flex-col gap-8">
             {/* Folders */}
-            {folders.map((folder) => {
-              const folderDecks = decks.filter((d) => d.folder_id === folder.id);
+            {filteredFolders.map((folder) => {
+              const folderDecks = filteredDecks.filter((d) => d.folder_id === folder.id);
               const isOver = dragOverTarget === folder.id;
               return (
                 <div
