@@ -200,6 +200,7 @@ export default function DeckPage() {
       }
 
       setLoading(false);
+      if (doc.source_type === "manual") return;
       setGenerating(true);
       const res = await fetch("/api/cards/generate", {
         method: "POST",
