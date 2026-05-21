@@ -76,6 +76,10 @@ export default function DeckPage() {
   // Session size
   const [sessionLimit, setSessionLimit] = useState<number | null>(null);
 
+  // Card list UI
+  const [cardSearch, setCardSearch] = useState("");
+  const [gridView, setGridView] = useState(false);
+
   // Scroll-aware header
   const [scrolled, setScrolled] = useState(false);
   const [heroHeight, setHeroHeight] = useState(0);
@@ -580,10 +584,52 @@ export default function DeckPage() {
         )}
 
         <div>
-          <div className="flex items-baseline justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <h2 className="font-serif text-[28px] leading-tight text-[var(--ink)]">All cards</h2>
-            <Eyebrow>{generating ? "Generating…" : `${cards.length} total`}</Eyebrow>
+            <div className="flex items-center gap-3">
+              <Eyebrow>{generating ? "Generating…" : `${cards.length} total`}</Eyebrow>
+              {!generating && cards.length > 0 && (
+                <button
+                  onClick={() => setGridView(v => !v)}
+                  className="transition-colors"
+                  style={{ color: gridView ? "var(--ink)" : "var(--muted)" }}
+                  title={gridView ? "List view" : "Grid view"}
+                >
+                  {gridView ? (
+                    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                    </svg>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
+
+          {!generating && cards.length > 0 && (
+            <div className="relative mb-6">
+              <svg viewBox="0 0 24 24" className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--muted)" }}>
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+              <input
+                value={cardSearch}
+                onChange={(e) => setCardSearch(e.target.value)}
+                placeholder="Search cards…"
+                className="w-full pl-10 pr-8 py-2.5 rounded-xl text-[14px] bg-white outline-none"
+                style={{ border: "1px solid var(--border)", color: "var(--ink)" }}
+              />
+              {cardSearch && (
+                <button onClick={() => setCardSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }}>
+                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 6 6 18M6 6l12 12"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+          )}
 
           {addingCard && (
             <div className="mb-6 p-6 rounded-2xl" style={{ border: "1px solid var(--accent-tint)", background: "var(--accent-bg)" }}>
@@ -682,9 +728,39 @@ export default function DeckPage() {
                 </div>
               ))}
             </div>
-          ) : (
+          ) : (() => {
+            const q = cardSearch.trim().toLowerCase();
+            const filtered = q
+              ? cards.filter(c =>
+                  c.front.toLowerCase().includes(q) ||
+                  c.back.toLowerCase().includes(q) ||
+                  (c.hint ?? "").toLowerCase().includes(q)
+                )
+              : cards;
+            if (q && filtered.length === 0) return (
+              <div className="py-10 text-center">
+                <Eyebrow>No cards match "{cardSearch}"</Eyebrow>
+              </div>
+            );
+            if (gridView) return (
+              <div className="grid grid-cols-2 gap-3">
+                {filtered.map((card) => (
+                  <div key={card.id} className="bg-white rounded-2xl p-5 flex flex-col gap-3" style={{ border: "1px solid var(--border)" }}>
+                    <p className="font-serif text-[16px] leading-snug text-[var(--ink)]">{card.front}</p>
+                    <p className="text-[13px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
+                    {card.hint && (
+                      <p className="text-[12px]" style={{ color: "var(--muted)" }}>
+                        <span className="font-mono text-[10px] uppercase tracking-[0.14em] mr-1" style={{ color: "var(--soft)" }}>Hint</span>
+                        {card.hint}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+            return (
             <ol className="flex flex-col">
-              {cards.map((card, i) => (
+              {filtered.map((card, i) => (
                 <li
                   key={card.id}
                   className="group py-7"
@@ -835,7 +911,8 @@ export default function DeckPage() {
                 </li>
               ))}
             </ol>
-          )}
+            );
+          })()}
         </div>
       </div>
       </div>
