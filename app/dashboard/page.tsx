@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import DeckList from "@/components/DeckList";
+import { getDeckLevel } from "@/lib/levels";
 
 function calcStreak(activities: { review_date: string }[]): number {
   if (!activities.length) return 0;
@@ -35,6 +36,7 @@ export default async function DashboardPage() {
     return <DeckList decks={[]} folders={folders ?? []} streak={streak} totalXp={totalXp} />;
   }
 
+
   const docIds = documents.map((d) => d.id);
 
   const { data: cards } = await supabase
@@ -44,12 +46,14 @@ export default async function DashboardPage() {
 
   const { data: reviews } = await supabase
     .from("card_reviews")
-    .select("card_id, due_date")
+    .select("card_id, due_date, card_xp")
     .eq("user_id", user.id)
     .in("card_id", (cards ?? []).map((c) => c.id));
 
   const today = new Date().toISOString().split("T")[0];
   const reviewedMap = new Map(reviews?.map((r) => [r.card_id, r.due_date]));
+
+  const cardXpMap = new Map(reviews?.map(r => [r.card_id, r.card_xp ?? 0]) ?? []);
 
   const decks = documents.map((doc) => {
     const docCards = cards?.filter((c) => c.document_id === doc.id) ?? [];
@@ -57,7 +61,8 @@ export default async function DashboardPage() {
       const due = reviewedMap.get(c.id);
       return !due || due <= today;
     }).length;
-    return { ...doc, cardCount: docCards.length, dueCount };
+    const { level: deckLevel, deckXp } = getDeckLevel(cardXpMap, docCards.map(c => c.id));
+    return { ...doc, cardCount: docCards.length, dueCount, deckLevel, deckXp };
   });
 
   return <DeckList decks={decks} folders={folders ?? []} streak={streak} totalXp={totalXp} />;

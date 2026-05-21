@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { Card, Document, DocumentSource, Playlist } from "@/types";
+import { getCardLevel, getCardLevelProgress, getDeckLevel, DECK_LEVEL_NAMES, MAX_CARD_LEVEL, CARD_LEVEL_THRESHOLDS } from "@/lib/levels";
 import dynamic from "next/dynamic";
 const DrawingCanvas = dynamic(() => import("@/components/DrawingCanvas"), { ssr: false });
 
@@ -61,6 +62,7 @@ export default function DeckPage() {
   const router = useRouter();
   const [document, setDocument] = useState<Document | null>(null);
   const [sources, setSources] = useState<DocumentSource[]>([]);
+  const [cardXpMap, setCardXpMap] = useState<Map<string, number>>(new Map());
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [playlistCardIds, setPlaylistCardIds] = useState<Map<string, Set<string>>>(new Map());
   const [cards, setCards] = useState<Card[]>([]);
@@ -199,10 +201,11 @@ export default function DeckPage() {
         const today = new Date().toISOString().split("T")[0];
         const { data: reviews } = await supabase
           .from("card_reviews")
-          .select("card_id, due_date")
+          .select("card_id, due_date, card_xp")
           .in("card_id", existing.map((c) => c.id));
         const reviewedMap = new Map(reviews?.map((r) => [r.card_id, r.due_date]));
         setDueCount(existing.filter((c) => { const d = reviewedMap.get(c.id); return !d || d <= today; }).length);
+        setCardXpMap(new Map(reviews?.map((r) => [r.card_id, r.card_xp ?? 0]) ?? []));
 
         const { data: chunks } = await supabase
           .from("chunks")
@@ -655,13 +658,28 @@ export default function DeckPage() {
           )}
 
           {/* Stat strip — hidden when scrolled */}
-          {!scrolled && (
-            <div className="mt-4 grid grid-cols-3 divide-x" style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
-              <StatCell label="Total" value={cards.length} />
-              <StatCell label="Due now" value={dueCount} accent={dueCount > 0} />
-              <StatCell label="Source" value={document?.source_type?.toUpperCase() ?? "—"} />
-            </div>
-          )}
+          {!scrolled && (() => {
+            const { level, progress, deckXp } = getDeckLevel(cardXpMap, cards.map(c => c.id));
+            return (
+              <>
+                <div className="mt-4 grid grid-cols-4 divide-x" style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
+                  <StatCell label="Total" value={cards.length} />
+                  <StatCell label="Due now" value={dueCount} accent={dueCount > 0} />
+                  <StatCell label="Deck XP" value={deckXp.toLocaleString()} />
+                  <div className="px-1 py-2.5 first:pl-0">
+                    <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">Level</span>
+                    <div className="mt-1 flex items-baseline gap-1.5">
+                      <span className="font-serif text-[28px] leading-none text-[var(--ink)]">{level}</span>
+                      <span className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>{DECK_LEVEL_NAMES[level]}</span>
+                    </div>
+                    <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-2)" }}>
+                      <div className="h-full rounded-full transition-all" style={{ width: `${level >= MAX_CARD_LEVEL ? 100 : Math.round(progress * 100)}%`, background: "var(--accent)" }} />
+                    </div>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
 
           {/* Action buttons */}
           <div className={`flex flex-wrap gap-2 ${scrolled ? "mt-2" : "mt-4"}`}>
@@ -1390,6 +1408,21 @@ export default function DeckPage() {
                           <p className={`font-serif ${titleSize} leading-snug text-[var(--ink)] whitespace-pre-wrap`}>{card.front}</p>
                           <p className={`${bodySize} leading-relaxed whitespace-pre-wrap`} style={{ color: "var(--ink-soft)" }}>{card.back}</p>
                           {card.hint && <p className="text-[11px] whitespace-pre-wrap" style={{ color: "var(--muted)" }}><span className="font-mono text-[10px] uppercase tracking-[0.14em] mr-1" style={{ color: "var(--soft)" }}>Hint</span>{card.hint}</p>}
+                          {(() => {
+                            const xp = cardXpMap.get(card.id) ?? 0;
+                            const { level, progress, xpInLevel, xpToNext } = getCardLevelProgress(xp);
+                            return (
+                              <div className="mt-1 flex items-center gap-2">
+                                <span className="font-mono text-[10px] uppercase tracking-[0.12em] flex-shrink-0" style={{ color: "var(--muted)" }}>Lv.{level}</span>
+                                <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: "var(--bg-2)" }}>
+                                  <div className="h-full rounded-full" style={{ width: `${level >= MAX_CARD_LEVEL ? 100 : Math.round(progress * 100)}%`, background: "var(--accent)" }} />
+                                </div>
+                                <span className="font-mono text-[10px] flex-shrink-0" style={{ color: "var(--muted)" }}>
+                                  {level >= MAX_CARD_LEVEL ? "Max" : `${xpInLevel}/${xpToNext}`}
+                                </span>
+                              </div>
+                            );
+                          })()}
                         </div>
                       )}
 
@@ -1604,6 +1637,19 @@ export default function DeckPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              {(() => {
+                                const xp = cardXpMap.get(card.id) ?? 0;
+                                const { level, progress } = getCardLevelProgress(xp);
+                                return (
+                                  <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.12em] px-1.5 py-0.5 rounded-full flex-shrink-0"
+                                    style={{ background: level >= MAX_CARD_LEVEL ? "var(--accent)" : "var(--bg-2)", color: level >= MAX_CARD_LEVEL ? "var(--ink)" : "var(--muted)" }}>
+                                    Lv.{level}
+                                  </span>
+                                );
+                              })()}
+                            </div>
                           <p className="font-serif text-[20px] leading-[1.3] text-[var(--ink)] whitespace-pre-wrap">{card.front}</p>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5">
                             <button
@@ -1650,6 +1696,7 @@ export default function DeckPage() {
                             })}
                           </div>
                         )}
+                        </div>
                         {card.image_url && <CardImage path={card.image_url} className="mt-3" />}
                         <p className="mt-3 text-[14.5px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
 
@@ -1659,6 +1706,20 @@ export default function DeckPage() {
                             {card.hint}
                           </p>
                         )}
+                        {(() => {
+                          const xp = cardXpMap.get(card.id) ?? 0;
+                          const { level, progress, xpInLevel, xpToNext } = getCardLevelProgress(xp);
+                          return (
+                            <div className="mt-3 flex items-center gap-2">
+                              <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: "var(--bg-2)" }}>
+                                <div className="h-full rounded-full transition-all" style={{ width: `${level >= MAX_CARD_LEVEL ? 100 : Math.round(progress * 100)}%`, background: "var(--accent)" }} />
+                              </div>
+                              <span className="font-mono text-[10px] uppercase tracking-[0.12em] flex-shrink-0" style={{ color: "var(--muted)" }}>
+                                {level >= MAX_CARD_LEVEL ? "Max" : `${xpInLevel}/${xpToNext} XP`}
+                              </span>
+                            </div>
+                          );
+                        })()}
 
                         {chunkMap.has(card.chunk_id) && (
                           <div className="mt-4">

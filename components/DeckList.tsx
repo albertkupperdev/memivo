@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { DECK_LEVEL_NAMES } from "@/lib/levels";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import DocumentUploader from "@/components/DocumentUploader";
@@ -10,6 +11,8 @@ import type { Document, Folder } from "@/types";
 interface DeckWithStats extends Document {
   cardCount: number;
   dueCount: number;
+  deckLevel: number;
+  deckXp: number;
 }
 
 type SortBy = "custom" | "name-asc" | "name-desc" | "date-new" | "date-old" | "due";
@@ -606,6 +609,9 @@ function DeckCard({
                 ) : (
                   <span className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--soft)" }}>· All caught up</span>
                 )}
+                <span className="inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>
+                  Lv.{deck.deckLevel ?? 1} {DECK_LEVEL_NAMES[deck.deckLevel ?? 1]}
+                </span>
                 {folders.length > 0 && (
                   <button
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenMoveId(isOpen ? null : deck.id); }}
