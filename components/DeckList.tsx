@@ -156,9 +156,10 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
     const dragged = decks.find((d) => d.id === draggingDeckId);
     const target = decks.find((d) => d.id === targetDeckId);
     if (!dragged || !target) return;
-    // Same section → reorder
     if (dragged.folder_id === target.folder_id && sortBy === "custom") {
       reorderSection(sectionDecks, draggingDeckId, targetDeckId, before);
+    } else if (dragged.folder_id !== target.folder_id) {
+      moveDeck(draggingDeckId, target.folder_id);
     }
     setDragOverDeckId(null);
     setDraggingDeckId(null);

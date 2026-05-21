@@ -94,6 +94,7 @@ export default function DeckPage() {
   const [addingCard, setAddingCard] = useState(false);
   const [newFront, setNewFront] = useState("");
   const [newBack, setNewBack] = useState("");
+  const [newHint, setNewHint] = useState("");
   const [newImageFile, setNewImageFile] = useState<File | null>(null);
   const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
   const [showDrawingNew, setShowDrawingNew] = useState(false);
@@ -372,13 +373,14 @@ export default function DeckPage() {
     const res = await fetch("/api/cards", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ documentId: id, front: newFront, back: newBack, image_url: newImageFile ? await uploadCardImage(newImageFile) : null, require_drawing: newRequireDrawing }),
+      body: JSON.stringify({ documentId: id, front: newFront, back: newBack, hint: newHint || null, image_url: newImageFile ? await uploadCardImage(newImageFile) : null, require_drawing: newRequireDrawing }),
     });
     if (res.ok) {
       const card = await res.json();
       setCards((prev) => [...prev, card]);
       setNewFront("");
       setNewBack("");
+      setNewHint("");
       setNewImageFile(null);
       setNewImagePreview(null);
       setNewRequireDrawing(false);
@@ -957,6 +959,13 @@ export default function DeckPage() {
                 placeholder="Back — answer"
                 className="mt-4 w-full text-[14.5px] leading-relaxed bg-transparent outline-none border-b resize-none"
                 style={{ color: "var(--ink-soft)", borderColor: "var(--accent-tint)" }}
+              />
+              <input
+                value={newHint}
+                onChange={(e) => setNewHint(e.target.value)}
+                placeholder="Hint (optional)"
+                className="mt-3 w-full text-[13px] bg-transparent outline-none border-b"
+                style={{ color: "var(--muted)", borderColor: "var(--accent-tint)" }}
               />
               {/* Image / drawing for new card */}
               <div className="mt-4">
