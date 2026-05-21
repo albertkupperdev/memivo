@@ -360,7 +360,7 @@ export default function ReviewPage() {
                 {showHint ? (
                   <div className="inline-flex items-start gap-2 px-3 py-2 rounded-xl" style={{ background: "var(--accent-bg)" }}>
                     <span className="font-mono text-[10px] uppercase tracking-[0.14em] mt-0.5 flex-shrink-0" style={{ color: "var(--accent-deep)" }}>Hint</span>
-                    <span className="text-[14px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>{card.hint}</span>
+                    <span className="text-[14px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--ink-soft)" }}>{card.hint}</span>
                   </div>
                 ) : (
                   <button

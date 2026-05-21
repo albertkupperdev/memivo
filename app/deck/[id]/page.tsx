@@ -972,11 +972,12 @@ export default function DeckPage() {
                 className="mt-4 w-full text-[14.5px] leading-relaxed bg-transparent outline-none border-b resize-none"
                 style={{ color: "var(--ink-soft)", borderColor: "var(--accent-tint)" }}
               />
-              <input
+              <textarea
                 value={newHint}
                 onChange={(e) => setNewHint(e.target.value)}
                 placeholder="Hint (optional)"
-                className="mt-3 w-full text-[13px] bg-transparent outline-none border-b"
+                rows={2}
+                className="mt-3 w-full text-[13px] bg-transparent outline-none border-b resize-none"
                 style={{ color: "var(--muted)", borderColor: "var(--accent-tint)" }}
               />
               {/* Image / drawing for new card */}
@@ -1183,7 +1184,7 @@ export default function DeckPage() {
                         <div className="flex flex-col gap-2 flex-1">
                           <textarea value={editFront} onChange={e => setEditFront(e.target.value)} rows={2} placeholder="Front" className={`w-full font-serif ${titleSize} bg-transparent outline-none border-b resize-none`} style={{ borderColor: "var(--border-strong)", color: "var(--ink)" }} />
                           <textarea value={editBack} onChange={e => setEditBack(e.target.value)} rows={3} placeholder="Back" className={`w-full ${bodySize} bg-transparent outline-none border-b resize-none`} style={{ borderColor: "var(--border-strong)", color: "var(--ink-soft)" }} />
-                          <input value={editHint} onChange={e => setEditHint(e.target.value)} placeholder="Hint (optional)" className="w-full text-[12px] bg-transparent outline-none border-b" style={{ borderColor: "var(--border-strong)", color: "var(--muted)" }} />
+                          <textarea value={editHint} onChange={e => setEditHint(e.target.value)} placeholder="Hint (optional)" rows={2} className="w-full text-[12px] bg-transparent outline-none border-b resize-none" style={{ borderColor: "var(--border-strong)", color: "var(--muted)" }} />
                           <div className="mt-2 flex gap-2">
                             <button onClick={saveCard} disabled={savingCard || !editFront.trim() || !editBack.trim()} className="px-2.5 py-1 text-xs font-medium rounded-lg text-white disabled:opacity-50" style={{ background: "var(--ink)" }}>{savingCard ? "…" : "Save"}</button>
                             <button onClick={() => { setEditingCardId(null); setSaveCardError(null); }} className="px-2.5 py-1 text-xs font-medium" style={{ color: "var(--muted)" }}>Cancel</button>
@@ -1203,7 +1204,7 @@ export default function DeckPage() {
                           {card.image_url && <CardImage path={card.image_url} />}
                           <p className={`font-serif ${titleSize} leading-snug text-[var(--ink)] whitespace-pre-wrap`}>{card.front}</p>
                           <p className={`${bodySize} leading-relaxed whitespace-pre-wrap`} style={{ color: "var(--ink-soft)" }}>{card.back}</p>
-                          {card.hint && <p className="text-[11px]" style={{ color: "var(--muted)" }}><span className="font-mono text-[10px] uppercase tracking-[0.14em] mr-1" style={{ color: "var(--soft)" }}>Hint</span>{card.hint}</p>}
+                          {card.hint && <p className="text-[11px] whitespace-pre-wrap" style={{ color: "var(--muted)" }}><span className="font-mono text-[10px] uppercase tracking-[0.14em] mr-1" style={{ color: "var(--soft)" }}>Hint</span>{card.hint}</p>}
                         </div>
                       )}
 
@@ -1262,10 +1263,11 @@ export default function DeckPage() {
                           style={{ color: "var(--ink-soft)", borderColor: "var(--border-strong)" }}
                           placeholder="Back"
                         />
-                        <input
+                        <textarea
                           value={editHint}
                           onChange={(e) => setEditHint(e.target.value)}
-                          className="w-full mt-3 text-[13px] bg-transparent outline-none border-b"
+                          rows={2}
+                          className="w-full mt-3 text-[13px] bg-transparent outline-none border-b resize-none"
                           style={{ color: "var(--muted)", borderColor: "var(--border-strong)" }}
                           placeholder="Hint (optional)"
                         />
@@ -1446,7 +1448,7 @@ export default function DeckPage() {
                         <p className="mt-3 text-[14.5px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
 
                         {card.hint && (
-                          <p className="mt-2 text-[13px]" style={{ color: "var(--muted)" }}>
+                          <p className="mt-2 text-[13px] whitespace-pre-wrap" style={{ color: "var(--muted)" }}>
                             <span className="font-mono text-[10px] uppercase tracking-[0.14em] mr-1.5" style={{ color: "var(--soft)" }}>Hint</span>
                             {card.hint}
                           </p>
