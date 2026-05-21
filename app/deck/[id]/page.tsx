@@ -410,7 +410,7 @@ export default function DeckPage() {
     const res = await fetch("/api/playlists", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ documentId: id, name: "Hard words" }),
+      body: JSON.stringify({ documentId: id, name: "Hard cards" }),
     });
     if (!res.ok) return;
     const pl = await res.json();
