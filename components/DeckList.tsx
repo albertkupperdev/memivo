@@ -301,7 +301,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
 
         {q && filteredDecks.length === 0 && filteredFolders.length === 0 ? (
           <div className="py-12 text-center">
-            <Eyebrow>No results for "{query}"</Eyebrow>
+            <Eyebrow>No results for &ldquo;{query}&rdquo;</Eyebrow>
           </div>
         ) : decks.length === 0 && folders.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 text-center" style={{ border: "1px solid var(--border)" }}>
@@ -314,7 +314,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
               Nothing here <em className="not-italic" style={{ color: "var(--accent-deep)" }}>yet</em>.
             </h3>
             <p className="mt-3 text-[15px] max-w-xs mx-auto leading-relaxed" style={{ color: "var(--ink-soft)" }}>
-              Upload a PDF or paste a URL above. We'll write the cards in under a minute.
+              Upload a PDF or paste a URL above. We&apos;ll write the cards in under a minute.
             </p>
           </div>
         ) : (
@@ -510,7 +510,7 @@ function DeckCard({
       {confirmingDelete ? (
         <div className="bg-white rounded-2xl p-5" style={{ border: "1px solid var(--complement-border)", background: "var(--complement-bg)" }}>
           <p className="text-[14px] leading-relaxed" style={{ color: "var(--complement-deeper)" }}>
-            Delete <span className="font-medium text-[var(--ink)]">"{deck.title}"</span>? All cards and review history will be removed.
+            Delete <span className="font-medium text-[var(--ink)]">&ldquo;{deck.title}&rdquo;</span>? All cards and review history will be removed.
           </p>
           <div className="mt-3 flex gap-2">
             <button onClick={() => onConfirmDelete(deck.id)} className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-lg text-white" style={{ background: "var(--complement)" }}>
