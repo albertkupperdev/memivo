@@ -74,6 +74,8 @@ export default function DeckPage() {
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmingReset, setConfirmingReset] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   // Card editing
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
@@ -241,6 +243,16 @@ export default function DeckPage() {
     const res = await fetch(`/api/documents/${id}`, { method: "DELETE" });
     if (res.ok) router.push("/dashboard");
     else { setDeleting(false); setConfirming(false); }
+  }
+
+  async function handleResetCooldowns() {
+    setResetting(true);
+    const res = await fetch(`/api/documents/${id}/reset-cooldowns`, { method: "POST" });
+    if (res.ok) {
+      setDueCount(cards.length);
+      setConfirmingReset(false);
+    }
+    setResetting(false);
   }
 
   function startEditCard(card: Card) {
@@ -636,10 +648,21 @@ export default function DeckPage() {
               </button>
             )}
             {!confirming && !scrolled && (
-              <button onClick={() => setConfirming(true)} className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors" style={{ color: "var(--muted)" }}>
-                <TrashIcon />
-                Delete
-              </button>
+              <>
+                <button
+                  onClick={() => setConfirmingReset(true)}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors"
+                  style={{ color: "var(--muted)" }}
+                  title="Reset cooldowns"
+                >
+                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>
+                  </svg>
+                </button>
+                <button onClick={() => setConfirming(true)} className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors" style={{ color: "var(--muted)" }}>
+                  <TrashIcon />
+                </button>
+              </>
             )}
           </div>
 
@@ -670,6 +693,28 @@ export default function DeckPage() {
               >
                 All {dueCount}
               </button>
+            </div>
+          )}
+
+          {/* Reset cooldowns confirmation */}
+          {confirmingReset && !scrolled && (
+            <div className="mt-4 p-5 rounded-2xl" style={{ background: "var(--accent-bg)", border: "1px solid var(--accent-tint)" }}>
+              <Eyebrow style={{ color: "var(--accent-deep)" }}>Refresh all card cooldowns?</Eyebrow>
+              <p className="mt-2 text-[14px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>
+                This will allow you to review all cards again. Card level progress will not be lost.
+              </p>
+              <div className="mt-4 flex gap-2">
+                <button onClick={handleResetCooldowns} disabled={resetting}
+                  className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-xl text-white transition-colors disabled:opacity-50"
+                  style={{ background: "var(--ink)" }}>
+                  {resetting ? "Resetting…" : "Yes, refresh"}
+                </button>
+                <button onClick={() => setConfirmingReset(false)}
+                  className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium transition-colors"
+                  style={{ color: "var(--muted)" }}>
+                  Cancel
+                </button>
+              </div>
             </div>
           )}
 
