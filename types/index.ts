@@ -49,6 +49,7 @@ export interface Card {
   back: string;
   hint: string | null;
   image_url: string | null;
+  position: number | null;
   created_at: string;
 }
 
