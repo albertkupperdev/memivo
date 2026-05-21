@@ -1,4 +1,13 @@
-export type SourceType = "pdf" | "url";
+export type SourceType = "pdf" | "url" | "manual";
+
+export interface DocumentSource {
+  id: string;
+  document_id: string;
+  source_type: "pdf" | "url";
+  source_url: string | null;
+  label: string | null;
+  created_at: string;
+}
 
 export interface Folder {
   id: string;

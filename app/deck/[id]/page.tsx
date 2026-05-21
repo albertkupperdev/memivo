@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import type { Card, Document } from "@/types";
+import type { Card, Document, DocumentSource } from "@/types";
 
 function Eyebrow({ children, className = "", style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
@@ -34,6 +34,7 @@ export default function DeckPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [document, setDocument] = useState<Document | null>(null);
+  const [sources, setSources] = useState<DocumentSource[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
   const [chunkMap, setChunkMap] = useState<Map<string, string>>(new Map());
   const [expandedSource, setExpandedSource] = useState<string | null>(null);
@@ -61,6 +62,16 @@ export default function DeckPage() {
   const [newFront, setNewFront] = useState("");
   const [newBack, setNewBack] = useState("");
   const [creatingCard, setCreatingCard] = useState(false);
+
+  // Add source
+  const [addingSource, setAddingSource] = useState(false);
+  const [sourceTab, setSourceTab] = useState<"pdf" | "url">("pdf");
+  const [sourceFile, setSourceFile] = useState<File | null>(null);
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [addingSourceProgress, setAddingSourceProgress] = useState(0);
+  const [addingSourceTotal, setAddingSourceTotal] = useState(0);
+  const [addingSourceLoading, setAddingSourceLoading] = useState(false);
+  const [addingSourceError, setAddingSourceError] = useState<string | null>(null);
 
   // Scroll-aware header
   const [scrolled, setScrolled] = useState(false);
@@ -94,6 +105,9 @@ export default function DeckPage() {
       const { data: doc } = await supabase.from("documents").select("*").eq("id", id).single();
       if (!doc) { setError("Document not found."); setLoading(false); return; }
       setDocument(doc);
+
+      const { data: docSources } = await supabase.from("document_sources").select("*").eq("document_id", id).order("created_at");
+      setSources(docSources ?? []);
 
       const { data: existing } = await supabase.from("cards").select("*").eq("document_id", id);
       if (existing && existing.length > 0) {
@@ -219,6 +233,66 @@ export default function DeckPage() {
     setSavingRename(false);
   }
 
+  async function addSource() {
+    const ready = sourceTab === "pdf" ? !!sourceFile : /^https?:\/\/\S+/.test(sourceUrl);
+    if (!ready) return;
+    setAddingSourceLoading(true);
+    setAddingSourceError(null);
+    setAddingSourceProgress(0);
+    setAddingSourceTotal(0);
+
+    let res: Response;
+    if (sourceTab === "pdf") {
+      const formData = new FormData();
+      formData.append("file", sourceFile!);
+      res = await fetch(`/api/documents/${id}/add-source/upload`, { method: "POST", body: formData });
+    } else {
+      res = await fetch(`/api/documents/${id}/add-source/url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: sourceUrl }),
+      });
+    }
+
+    if (!res.ok || !res.body) {
+      setAddingSourceError("Failed to process source.");
+      setAddingSourceLoading(false);
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        try {
+          const msg = JSON.parse(line.slice(6));
+          if (msg.progress !== undefined) { setAddingSourceProgress(msg.progress); setAddingSourceTotal(msg.total); }
+          if (msg.error) { setAddingSourceError(msg.error); setAddingSourceLoading(false); return; }
+          if (msg.done) {
+            setCards((prev) => [...prev, ...msg.cards]);
+            // Refresh sources list
+            const supabase = (await import("@/lib/supabase/client")).createClient();
+            const { data: newSources } = await supabase.from("document_sources").select("*").eq("document_id", id).order("created_at");
+            setSources(newSources ?? []);
+            setAddingSource(false);
+            setSourceFile(null);
+            setSourceUrl("");
+            setAddingSourceLoading(false);
+            return;
+          }
+        } catch { /* ignore */ }
+      }
+    }
+    setAddingSourceLoading(false);
+  }
+
   async function createCard(andAnother = false) {
     if (!newFront.trim() || !newBack.trim()) return;
     setCreatingCard(true);
@@ -255,12 +329,43 @@ export default function DeckPage() {
       <div ref={heroRef} className="fixed left-0 right-0 z-20" style={{ top: 47, background: "var(--bg)", borderBottom: "1px solid var(--border)" }}>
         <div className={`max-w-2xl mx-auto px-6 transition-all duration-300 ${scrolled ? "py-3" : "py-7"}`}>
 
-          {/* Eyebrow — hidden when scrolled */}
+          {/* Sources — hidden when scrolled */}
           {!scrolled && (
-            <Eyebrow>
-              {document?.source_type === "pdf" ? "PDF source" : "Web source"}
-              {document?.source_url && ` · ${document.source_url}`}
-            </Eyebrow>
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Primary source */}
+              {document?.source_type === "url" && document.source_url ? (
+                <a href={document.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors hover:opacity-70" style={{ color: "var(--muted)" }}>
+                  <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 1 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 1 0 7.07 7.07l1.5-1.5"/></svg>
+                  {new URL(document.source_url).hostname}
+                </a>
+              ) : document?.source_type === "pdf" ? (
+                <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>
+                  <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                  PDF
+                </span>
+              ) : null}
+              {/* Additional sources */}
+              {sources.map((s) => (
+                s.source_type === "url" && s.source_url ? (
+                  <a key={s.id} href={s.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors hover:opacity-70" style={{ color: "var(--muted)" }}>
+                    <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 1 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 1 0 7.07 7.07l1.5-1.5"/></svg>
+                    {s.label ?? new URL(s.source_url).hostname}
+                  </a>
+                ) : (
+                  <span key={s.id} className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>
+                    <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                    {s.label ?? "PDF"}
+                  </span>
+                )
+              ))}
+              {/* Add source button */}
+              {!addingSource && (
+                <button onClick={() => setAddingSource(true)} className="inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors hover:opacity-70" style={{ color: "var(--accent-deep)" }}>
+                  <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                  Add source
+                </button>
+              )}
+            </div>
           )}
 
           {/* Title row */}
@@ -389,6 +494,58 @@ export default function DeckPage() {
           </svg>
           All decks
         </Link>
+        {/* Add source form */}
+        {addingSource && (
+          <div className="mb-8 p-6 rounded-2xl bg-white" style={{ border: "1px solid var(--border)" }}>
+            <div className="flex items-center justify-between mb-4">
+              <Eyebrow>Add source</Eyebrow>
+              <button onClick={() => { setAddingSource(false); setAddingSourceError(null); }} className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>Cancel</button>
+            </div>
+            <div className="inline-flex p-1 rounded-full mb-4" style={{ background: "var(--bg-2)" }}>
+              {(["pdf", "url"] as const).map((t) => (
+                <button key={t} onClick={() => setSourceTab(t)} className="px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] rounded-full transition-colors"
+                  style={sourceTab === t ? { background: "white", color: "var(--ink)", boxShadow: "0 1px 2px rgba(22,23,15,0.08)" } : { color: "var(--muted)" }}>
+                  {t.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            {sourceTab === "pdf" ? (
+              <label className="block cursor-pointer">
+                <input type="file" accept="application/pdf" className="hidden" onChange={(e) => setSourceFile(e.target.files?.[0] ?? null)} />
+                <div className="w-full px-6 py-8 rounded-xl text-center" style={{ border: "1.5px dashed var(--border-strong)" }}>
+                  {sourceFile ? <p className="text-[14px] font-medium text-[var(--ink)]">{sourceFile.name}</p> : <p className="text-[14px] text-[var(--muted)]">Click to select PDF</p>}
+                </div>
+              </label>
+            ) : (
+              <input type="url" placeholder="https://..." value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)}
+                className="w-full px-4 py-3 text-[14px] rounded-xl outline-none"
+                style={{ background: "var(--bg-2)", border: "1px solid var(--border-strong)", color: "var(--ink)" }} />
+            )}
+            {addingSourceLoading && (
+              <div className="mt-4">
+                <div className="flex justify-between mb-1">
+                  <Eyebrow>{addingSourceTotal > 0 ? `${addingSourceProgress} / ${addingSourceTotal} sections` : "Processing…"}</Eyebrow>
+                  {addingSourceTotal > 0 && <Eyebrow>{Math.round((addingSourceProgress / addingSourceTotal) * 100)}%</Eyebrow>}
+                </div>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--accent-bg)" }}>
+                  {addingSourceTotal > 0
+                    ? <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.round((addingSourceProgress / addingSourceTotal) * 100)}%`, background: "var(--accent)" }} />
+                    : <div className="h-full rounded-full animate-pulse w-full" style={{ background: "var(--accent)" }} />}
+                </div>
+              </div>
+            )}
+            {addingSourceError && <p className="mt-3 text-sm" style={{ color: "var(--complement-deep)" }}>{addingSourceError}</p>}
+            {!addingSourceLoading && (
+              <button onClick={addSource}
+                disabled={sourceTab === "pdf" ? !sourceFile : !/^https?:\/\/\S+/.test(sourceUrl)}
+                className="mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium rounded-xl transition-colors disabled:opacity-50"
+                style={{ background: "var(--ink)", color: "var(--bg)" }}>
+                Generate cards from source
+              </button>
+            )}
+          </div>
+        )}
+
         <div>
           <div className="flex items-baseline justify-between mb-6">
             <h2 className="font-serif text-[28px] leading-tight text-[var(--ink)]">All cards</h2>
