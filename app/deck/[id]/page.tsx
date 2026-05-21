@@ -110,6 +110,7 @@ export default function DeckPage() {
   // Card list UI
   const [cardSearch, setCardSearch] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "grid-small" | "grid-large">("list");
+  const [cardSort, setCardSort] = useState<"custom" | "front-asc" | "front-desc" | "date-new" | "date-old">("custom");
 
   // Card drag-to-reorder
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
@@ -872,6 +873,20 @@ export default function DeckPage() {
             <div className="flex items-center gap-3">
               <Eyebrow>{generating ? "Generating…" : `${cards.length} total`}</Eyebrow>
               {!generating && cards.length > 0 && (
+                <select
+                  value={cardSort}
+                  onChange={(e) => setCardSort(e.target.value as typeof cardSort)}
+                  className="px-2 py-1 rounded-lg text-[12px] font-mono bg-white outline-none appearance-none cursor-pointer"
+                  style={{ border: "1px solid var(--border)", color: "var(--muted)" }}
+                >
+                  <option value="custom">Sort: Custom</option>
+                  <option value="front-asc">Sort: A→Z</option>
+                  <option value="front-desc">Sort: Z→A</option>
+                  <option value="date-new">Sort: Newest</option>
+                  <option value="date-old">Sort: Oldest</option>
+                </select>
+              )}
+              {!generating && cards.length > 0 && (
                 <div className="flex items-center gap-1">
                   {([
                     { mode: "list", title: "List", icon: <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/> },
@@ -1036,13 +1051,20 @@ export default function DeckPage() {
             </div>
           ) : (() => {
             const q = cardSearch.trim().toLowerCase();
-            const filtered = q
+            const base = q
               ? cards.filter(c =>
                   c.front.toLowerCase().includes(q) ||
                   c.back.toLowerCase().includes(q) ||
                   (c.hint ?? "").toLowerCase().includes(q)
                 )
               : cards;
+            const filtered = [...base].sort((a, b) => {
+              if (cardSort === "front-asc") return a.front.localeCompare(b.front);
+              if (cardSort === "front-desc") return b.front.localeCompare(a.front);
+              if (cardSort === "date-new") return b.created_at.localeCompare(a.created_at);
+              if (cardSort === "date-old") return a.created_at.localeCompare(b.created_at);
+              return (a.position ?? 99999) - (b.position ?? 99999);
+            });
             if (q && filtered.length === 0) return (
               <div className="py-10 text-center">
                 <Eyebrow>No cards match &ldquo;{cardSearch}&rdquo;</Eyebrow>
@@ -1089,11 +1111,11 @@ export default function DeckPage() {
                   key={card.id}
                   className="group relative py-7"
                   style={{ borderTop: `2px solid ${dragOverCardId === card.id && dragCardBefore ? "var(--accent)" : "var(--border)"}`, ...(i === filtered.length - 1 ? { borderBottom: `2px solid ${dragOverCardId === card.id && !dragCardBefore ? "var(--accent)" : "var(--border)"}` } : {}), opacity: draggingCardId === card.id ? 0.4 : 1 }}
-                  draggable
-                  onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; setDraggingCardId(card.id); setDragOverCardId(null); }}
+                  draggable={cardSort === "custom"}
+                  onDragStart={(e) => { if (cardSort !== "custom") return; e.dataTransfer.effectAllowed = "move"; setDraggingCardId(card.id); setDragOverCardId(null); }}
                   onDragEnd={() => { setDraggingCardId(null); setDragOverCardId(null); }}
-                  onDragOver={(e) => { e.preventDefault(); const rect = e.currentTarget.getBoundingClientRect(); setDragOverCardId(card.id); setDragCardBefore(e.clientY < rect.top + rect.height / 2); }}
-                  onDrop={(e) => { e.preventDefault(); if (draggingCardId && draggingCardId !== card.id) reorderCards(draggingCardId, card.id, dragCardBefore); }}
+                  onDragOver={(e) => { if (cardSort !== "custom") return; e.preventDefault(); const rect = e.currentTarget.getBoundingClientRect(); setDragOverCardId(card.id); setDragCardBefore(e.clientY < rect.top + rect.height / 2); }}
+                  onDrop={(e) => { e.preventDefault(); if (cardSort === "custom" && draggingCardId && draggingCardId !== card.id) reorderCards(draggingCardId, card.id, dragCardBefore); }}
                 >
                   {editingCardId === card.id ? (
                     <div className="flex items-start gap-6">
