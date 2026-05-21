@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { Card, Document, DocumentSource, Playlist } from "@/types";
+import dynamic from "next/dynamic";
+const DrawingCanvas = dynamic(() => import("@/components/DrawingCanvas"), { ssr: false });
 
 async function uploadCardImage(file: File): Promise<string | null> {
   const { createClient } = await import("@/lib/supabase/client");
@@ -81,6 +83,7 @@ export default function DeckPage() {
   const [editImagePath, setEditImagePath] = useState<string | null>(null);
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+  const [showDrawingEdit, setShowDrawingEdit] = useState(false);
   const [savingCard, setSavingCard] = useState(false);
   const [saveCardError, setSaveCardError] = useState<string | null>(null);
   const [confirmDeleteCardId, setConfirmDeleteCardId] = useState<string | null>(null);
@@ -92,6 +95,7 @@ export default function DeckPage() {
   const [newBack, setNewBack] = useState("");
   const [newImageFile, setNewImageFile] = useState<File | null>(null);
   const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
+  const [showDrawingNew, setShowDrawingNew] = useState(false);
   const [creatingCard, setCreatingCard] = useState(false);
 
   // Add source
@@ -244,6 +248,7 @@ export default function DeckPage() {
     setEditImagePath(card.image_url ?? null);
     setEditImageFile(null);
     setEditImagePreview(null);
+    setShowDrawingEdit(false);
   }
 
   async function saveCard() {
@@ -949,9 +954,19 @@ export default function DeckPage() {
                 className="mt-4 w-full text-[14.5px] leading-relaxed bg-transparent outline-none border-b resize-none"
                 style={{ color: "var(--ink-soft)", borderColor: "var(--accent-tint)" }}
               />
-              {/* Image picker for new card */}
+              {/* Image / drawing for new card */}
               <div className="mt-4">
-                {newImagePreview ? (
+                {showDrawingNew ? (
+                  <DrawingCanvas
+                    onSave={async (blob) => {
+                      const file = new File([blob], "drawing.png", { type: "image/png" });
+                      setNewImageFile(file);
+                      setNewImagePreview(URL.createObjectURL(blob));
+                      setShowDrawingNew(false);
+                    }}
+                    onCancel={() => setShowDrawingNew(false)}
+                  />
+                ) : newImagePreview ? (
                   <div className="relative inline-block">
                     <img src={newImagePreview} alt="" className="rounded-xl max-h-36 object-contain" />
                     <button onClick={() => { setNewImageFile(null); setNewImagePreview(null); }}
@@ -959,17 +974,27 @@ export default function DeckPage() {
                       style={{ background: "var(--complement)" }}>✕</button>
                   </div>
                 ) : (
-                  <label className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] cursor-pointer transition-colors" style={{ color: "var(--muted)" }}>
-                    <input type="file" accept="image/*" className="hidden" onChange={e => {
-                      const f = e.target.files?.[0] ?? null;
-                      setNewImageFile(f);
-                      setNewImagePreview(f ? URL.createObjectURL(f) : null);
-                    }} />
-                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>
-                    </svg>
-                    Add image
-                  </label>
+                  <div className="flex gap-3">
+                    <label className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] cursor-pointer transition-colors" style={{ color: "var(--muted)" }}>
+                      <input type="file" accept="image/*" className="hidden" onChange={e => {
+                        const f = e.target.files?.[0] ?? null;
+                        setNewImageFile(f);
+                        setNewImagePreview(f ? URL.createObjectURL(f) : null);
+                      }} />
+                      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>
+                      </svg>
+                      Add image
+                    </label>
+                    <button onClick={() => setShowDrawingNew(true)}
+                      className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
+                      style={{ color: "var(--muted)" }}>
+                      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                      </svg>
+                      Draw
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -1146,9 +1171,20 @@ export default function DeckPage() {
                           style={{ color: "var(--muted)", borderColor: "var(--border-strong)" }}
                           placeholder="Hint (optional)"
                         />
-                        {/* Image for edit */}
+                        {/* Image / drawing for edit */}
                         <div className="mt-3">
-                          {editImagePreview ? (
+                          {showDrawingEdit ? (
+                            <DrawingCanvas
+                              onSave={async (blob) => {
+                                const file = new File([blob], "drawing.png", { type: "image/png" });
+                                setEditImageFile(file);
+                                setEditImagePreview(URL.createObjectURL(blob));
+                                setEditImagePath(null);
+                                setShowDrawingEdit(false);
+                              }}
+                              onCancel={() => setShowDrawingEdit(false)}
+                            />
+                          ) : editImagePreview ? (
                             <div className="relative inline-block">
                               <img src={editImagePreview} alt="" className="rounded-xl max-h-32 object-contain" />
                               <button onClick={() => { setEditImageFile(null); setEditImagePreview(null); setEditImagePath(null); }}
@@ -1163,17 +1199,27 @@ export default function DeckPage() {
                                 style={{ background: "var(--complement)" }}>✕</button>
                             </div>
                           ) : (
-                            <label className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] cursor-pointer" style={{ color: "var(--muted)" }}>
-                              <input type="file" accept="image/*" className="hidden" onChange={e => {
-                                const f = e.target.files?.[0] ?? null;
-                                setEditImageFile(f);
-                                setEditImagePreview(f ? URL.createObjectURL(f) : null);
-                              }} />
-                              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>
-                              </svg>
-                              Add image
-                            </label>
+                            <div className="flex gap-3">
+                              <label className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] cursor-pointer" style={{ color: "var(--muted)" }}>
+                                <input type="file" accept="image/*" className="hidden" onChange={e => {
+                                  const f = e.target.files?.[0] ?? null;
+                                  setEditImageFile(f);
+                                  setEditImagePreview(f ? URL.createObjectURL(f) : null);
+                                }} />
+                                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>
+                                </svg>
+                                Add image
+                              </label>
+                              <button onClick={() => setShowDrawingEdit(true)}
+                                className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
+                                style={{ color: "var(--muted)" }}>
+                                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                                </svg>
+                                Draw
+                              </button>
+                            </div>
                           )}
                         </div>
                         <div className="mt-4 flex items-center gap-2 flex-wrap">
