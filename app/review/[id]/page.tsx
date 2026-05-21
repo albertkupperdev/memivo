@@ -3,6 +3,16 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+
+function CardImage({ path }: { path: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    createClient().storage.from("card-images").createSignedUrl(path, 3600)
+      .then(({ data }) => setUrl(data?.signedUrl ?? null));
+  }, [path]);
+  if (!url) return <div className="animate-pulse rounded-2xl h-40 mb-4" style={{ background: "var(--bg-2)" }} />;
+  return <img src={url} alt="" className="rounded-2xl max-h-56 object-contain w-full mb-4" />;
+}
 import { formatInterval } from "@/lib/sm2";
 import type { Card, ReviewRating, UserSettings } from "@/types";
 import { DEFAULT_SETTINGS } from "@/types";
@@ -253,6 +263,7 @@ export default function ReviewPage() {
               {String(idx + 1).padStart(2, "0")} · {String(total).padStart(2, "0")}
             </span>
 
+            {card.image_url && <CardImage path={card.image_url} />}
             <Eyebrow>Question</Eyebrow>
             <p className="mt-4 font-serif text-[34px] sm:text-[40px] leading-[1.15] text-[var(--ink)]">
               {card.front}

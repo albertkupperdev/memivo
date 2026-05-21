@@ -6,6 +6,30 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { Card, Document, DocumentSource, Playlist } from "@/types";
 
+async function uploadCardImage(file: File): Promise<string | null> {
+  const { createClient } = await import("@/lib/supabase/client");
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const ext = file.name.split(".").pop() ?? "jpg";
+  const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from("card-images").upload(path, file, { cacheControl: "3600" });
+  if (error) return null;
+  return path;
+}
+
+function CardImage({ path, className = "" }: { path: string; className?: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    import("@/lib/supabase/client").then(({ createClient }) => {
+      createClient().storage.from("card-images").createSignedUrl(path, 3600)
+        .then(({ data }) => setUrl(data?.signedUrl ?? null));
+    });
+  }, [path]);
+  if (!url) return <div className={`animate-pulse rounded-xl h-32 ${className}`} style={{ background: "var(--bg-2)" }} />;
+  return <img src={url} alt="" className={`rounded-xl object-contain max-h-48 w-full ${className}`} />;
+}
+
 function Eyebrow({ children, className = "", style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
     <span className={`font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted)] ${className}`} style={style}>
@@ -54,6 +78,9 @@ export default function DeckPage() {
   const [editFront, setEditFront] = useState("");
   const [editBack, setEditBack] = useState("");
   const [editHint, setEditHint] = useState("");
+  const [editImagePath, setEditImagePath] = useState<string | null>(null);
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
   const [savingCard, setSavingCard] = useState(false);
   const [saveCardError, setSaveCardError] = useState<string | null>(null);
   const [confirmDeleteCardId, setConfirmDeleteCardId] = useState<string | null>(null);
@@ -63,6 +90,8 @@ export default function DeckPage() {
   const [addingCard, setAddingCard] = useState(false);
   const [newFront, setNewFront] = useState("");
   const [newBack, setNewBack] = useState("");
+  const [newImageFile, setNewImageFile] = useState<File | null>(null);
+  const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
   const [creatingCard, setCreatingCard] = useState(false);
 
   // Add source
@@ -206,6 +235,9 @@ export default function DeckPage() {
     setEditFront(card.front);
     setEditBack(card.back);
     setEditHint(card.hint ?? "");
+    setEditImagePath(card.image_url ?? null);
+    setEditImageFile(null);
+    setEditImagePreview(null);
   }
 
   async function saveCard() {
@@ -215,7 +247,7 @@ export default function DeckPage() {
     const res = await fetch(`/api/cards/${editingCardId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ front: editFront, back: editBack, hint: editHint || null }),
+      body: JSON.stringify({ front: editFront, back: editBack, hint: editHint || null, image_url: editImageFile ? await uploadCardImage(editImageFile) : editImagePath }),
     });
     if (res.ok) {
       const updated = await res.json();
@@ -326,13 +358,15 @@ export default function DeckPage() {
     const res = await fetch("/api/cards", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ documentId: id, front: newFront, back: newBack }),
+      body: JSON.stringify({ documentId: id, front: newFront, back: newBack, image_url: newImageFile ? await uploadCardImage(newImageFile) : null }),
     });
     if (res.ok) {
       const card = await res.json();
       setCards((prev) => [...prev, card]);
       setNewFront("");
       setNewBack("");
+      setNewImageFile(null);
+      setNewImagePreview(null);
       if (!andAnother) {
         setAddingCard(false);
       } else {
@@ -876,6 +910,30 @@ export default function DeckPage() {
                 className="mt-4 w-full text-[14.5px] leading-relaxed bg-transparent outline-none border-b resize-none"
                 style={{ color: "var(--ink-soft)", borderColor: "var(--accent-tint)" }}
               />
+              {/* Image picker for new card */}
+              <div className="mt-4">
+                {newImagePreview ? (
+                  <div className="relative inline-block">
+                    <img src={newImagePreview} alt="" className="rounded-xl max-h-36 object-contain" />
+                    <button onClick={() => { setNewImageFile(null); setNewImagePreview(null); }}
+                      className="absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs"
+                      style={{ background: "var(--complement)" }}>✕</button>
+                  </div>
+                ) : (
+                  <label className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] cursor-pointer transition-colors" style={{ color: "var(--muted)" }}>
+                    <input type="file" accept="image/*" className="hidden" onChange={e => {
+                      const f = e.target.files?.[0] ?? null;
+                      setNewImageFile(f);
+                      setNewImagePreview(f ? URL.createObjectURL(f) : null);
+                    }} />
+                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>
+                    </svg>
+                    Add image
+                  </label>
+                )}
+              </div>
+
               <div className="mt-4 flex gap-2 flex-wrap">
                 <button
                   onClick={() => createCard(false)}
@@ -970,6 +1028,7 @@ export default function DeckPage() {
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                 {filtered.map((card) => (
                   <div key={card.id} className="bg-white rounded-2xl p-4 flex flex-col gap-2" style={{ border: "1px solid var(--border)" }}>
+                    {card.image_url && <CardImage path={card.image_url} />}
                     <p className="font-serif text-[15px] leading-snug text-[var(--ink)]">{card.front}</p>
                     <p className="text-[12px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
                     {card.hint && (
@@ -986,6 +1045,7 @@ export default function DeckPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {filtered.map((card) => (
                   <div key={card.id} className="bg-white rounded-2xl p-6 flex flex-col gap-3" style={{ border: "1px solid var(--border)" }}>
+                    {card.image_url && <CardImage path={card.image_url} />}
                     <p className="font-serif text-[20px] leading-snug text-[var(--ink)]">{card.front}</p>
                     <p className="text-[14.5px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
                     {card.hint && (
@@ -1035,6 +1095,36 @@ export default function DeckPage() {
                           style={{ color: "var(--muted)", borderColor: "var(--border-strong)" }}
                           placeholder="Hint (optional)"
                         />
+                        {/* Image for edit */}
+                        <div className="mt-3">
+                          {editImagePreview ? (
+                            <div className="relative inline-block">
+                              <img src={editImagePreview} alt="" className="rounded-xl max-h-32 object-contain" />
+                              <button onClick={() => { setEditImageFile(null); setEditImagePreview(null); setEditImagePath(null); }}
+                                className="absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs"
+                                style={{ background: "var(--complement)" }}>✕</button>
+                            </div>
+                          ) : editImagePath ? (
+                            <div className="relative inline-block">
+                              <CardImage path={editImagePath} className="max-h-32" />
+                              <button onClick={() => setEditImagePath(null)}
+                                className="absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs"
+                                style={{ background: "var(--complement)" }}>✕</button>
+                            </div>
+                          ) : (
+                            <label className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] cursor-pointer" style={{ color: "var(--muted)" }}>
+                              <input type="file" accept="image/*" className="hidden" onChange={e => {
+                                const f = e.target.files?.[0] ?? null;
+                                setEditImageFile(f);
+                                setEditImagePreview(f ? URL.createObjectURL(f) : null);
+                              }} />
+                              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>
+                              </svg>
+                              Add image
+                            </label>
+                          )}
+                        </div>
                         <div className="mt-4 flex items-center gap-2 flex-wrap">
                           <button
                             onClick={saveCard}
@@ -1141,6 +1231,7 @@ export default function DeckPage() {
                             })}
                           </div>
                         )}
+                        {card.image_url && <CardImage path={card.image_url} className="mt-3" />}
                         <p className="mt-3 text-[14.5px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
 
                         {card.hint && (

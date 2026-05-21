@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { documentId, front, back } = await request.json();
+  const { documentId, front, back, image_url } = await request.json();
   if (!documentId || !front?.trim() || !back?.trim()) {
     return NextResponse.json({ error: "documentId, front, and back are required" }, { status: 400 });
   }
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
 
   const { data, error } = await supabase
     .from("cards")
-    .insert({ document_id: documentId, chunk_id: null, front: front.trim(), back: back.trim() })
+    .insert({ document_id: documentId, chunk_id: null, front: front.trim(), back: back.trim(), image_url: image_url ?? null })
     .select()
     .single();
 
