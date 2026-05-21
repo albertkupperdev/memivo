@@ -63,6 +63,7 @@ export default function ReviewPage() {
   const [streak, setStreak] = useState(0);
   const startTimeRef = useRef<number>(0);
   const activitySaved = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [chunkMap, setChunkMap] = useState<Map<string, string>>(new Map());
   const [idx, setIdx] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -152,9 +153,17 @@ export default function ReviewPage() {
   // Timer
   useEffect(() => {
     startTimeRef.current = Date.now();
-    const interval = setInterval(() => setSessionSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000)), 1000);
-    return () => clearInterval(interval);
+    timerRef.current = setInterval(() => setSessionSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000)), 1000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
+
+  // Stop timer when session completes
+  useEffect(() => {
+    if (done && timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, [done]);
 
   // Fetch streak
   useEffect(() => {
