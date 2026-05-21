@@ -174,12 +174,10 @@ export default function ReviewPage() {
     }).catch(() => {});
   }, []);
 
-  if (!loaded) return <Shell message="Loading…" />;
-  if (noCards) return <Shell message="No cards found." />;
-
   const total = cards.length;
   const done = idx >= total;
 
+  // Save activity when session completes
   useEffect(() => {
     if (done && total > 0 && !activitySaved.current) {
       activitySaved.current = true;
@@ -190,6 +188,10 @@ export default function ReviewPage() {
       });
     }
   }, [done, total, sessionXp, sessionSeconds]);
+
+  if (!loaded) return <Shell message="Loading…" />;
+  if (noCards) return <Shell message="No cards found." />;
+
 
   if (done) {
     const counts = ratings.reduce<Record<ReviewRating, number>>(
