@@ -17,6 +17,8 @@ type SortBy = "custom" | "name-asc" | "name-desc" | "date-new" | "date-old" | "d
 interface Props {
   decks: DeckWithStats[];
   folders: Folder[];
+  streak: number;
+  totalXp: number;
 }
 
 function Eyebrow({ children, className = "", style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
@@ -39,7 +41,7 @@ function applySortBy(list: DeckWithStats[], sortBy: SortBy): DeckWithStats[] {
   }
 }
 
-export default function DeckList({ decks: initialDecks, folders: initialFolders }: Props) {
+export default function DeckList({ decks: initialDecks, folders: initialFolders, streak, totalXp }: Props) {
   const router = useRouter();
   const [decks, setDecks] = useState(initialDecks);
   const [folders, setFolders] = useState(initialFolders);
@@ -200,6 +202,21 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders 
             <StatCell label="Cards" value={totalCards} />
             <StatCell label="Due now" value={totalDue} accent={totalDue > 0} />
           </div>
+
+          {(streak > 0 || totalXp > 0) && (
+            <div className="mt-4 flex items-center gap-4">
+              {streak > 0 && (
+                <span className="inline-flex items-center gap-1.5 font-mono text-[12px] uppercase tracking-[0.12em]" style={{ color: "var(--ink)" }}>
+                  🔥 <span className="font-serif text-[18px]">{streak}</span> day streak
+                </span>
+              )}
+              {totalXp > 0 && (
+                <span className="inline-flex items-center gap-1.5 font-mono text-[12px] uppercase tracking-[0.12em]" style={{ color: "var(--accent-deep)" }}>
+                  ⚡ <span className="font-serif text-[18px]">{totalXp.toLocaleString()}</span> XP
+                </span>
+              )}
+            </div>
+          )}
 
           <div className="mt-5 flex gap-2">
             <div className="relative flex-1">

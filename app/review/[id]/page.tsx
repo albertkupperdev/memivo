@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import dynamic from "next/dynamic";
@@ -58,6 +58,11 @@ export default function ReviewPage() {
 
   const [cards, setCards] = useState<Card[]>([]);
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
+  const [sessionSeconds, setSessionSeconds] = useState(0);
+  const [sessionXp, setSessionXp] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const startTimeRef = useRef<number>(0);
+  const activitySaved = useRef(false);
   const [chunkMap, setChunkMap] = useState<Map<string, string>>(new Map());
   const [idx, setIdx] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -113,6 +118,8 @@ export default function ReviewPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ rating }),
     });
+    const XP = { again: 2, hard: 5, good: 8, easy: 10 } as const;
+    setSessionXp((prev) => prev + XP[rating]);
     setRatings((prev) => [...prev, rating]);
     setIdx((prev) => prev + 1);
     setRevealed(false);
@@ -142,17 +149,56 @@ export default function ReviewPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [revealed, idx, loaded, cards.length]);
 
+  // Timer
+  useEffect(() => {
+    startTimeRef.current = Date.now();
+    const interval = setInterval(() => setSessionSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000)), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch streak
+  useEffect(() => {
+    fetch("/api/activity").then(r => r.json()).then((activities: { review_date: string }[]) => {
+      if (!Array.isArray(activities)) return;
+      const dates = new Set(activities.map(a => a.review_date));
+      const todayStr = new Date().toISOString().split("T")[0];
+      const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+      if (!dates.has(todayStr) && !dates.has(yesterdayStr)) { setStreak(0); return; }
+      let s = 0;
+      let d = new Date(dates.has(todayStr) ? todayStr : yesterdayStr);
+      while (dates.has(d.toISOString().split("T")[0])) {
+        s++;
+        d = new Date(d.getTime() - 86400000);
+      }
+      setStreak(s);
+    }).catch(() => {});
+  }, []);
+
   if (!loaded) return <Shell message="Loading…" />;
   if (noCards) return <Shell message="No cards found." />;
 
   const total = cards.length;
   const done = idx >= total;
 
+  useEffect(() => {
+    if (done && total > 0 && !activitySaved.current) {
+      activitySaved.current = true;
+      fetch("/api/activity", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cardsReviewed: total, xpEarned: sessionXp, sessionSeconds }),
+      });
+    }
+  }, [done, total, sessionXp, sessionSeconds]);
+
   if (done) {
     const counts = ratings.reduce<Record<ReviewRating, number>>(
       (acc, r) => ({ ...acc, [r]: (acc[r] || 0) + 1 }),
       { again: 0, hard: 0, good: 0, easy: 0 }
     );
+    const mins = Math.floor(sessionSeconds / 60);
+    const secs = sessionSeconds % 60;
+    const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
     return (
       <div className="flex-1 w-full">
         <div className="max-w-lg mx-auto px-6 py-20">
@@ -166,9 +212,26 @@ export default function ReviewPage() {
             <h1 className="mt-3 font-serif text-[48px] leading-[1.05] text-[var(--ink)]">
               Nice <em className="not-italic" style={{ color: "var(--accent-deep)" }}>work</em>.
             </h1>
-            <p className="mt-4 text-[16px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>
-              You reviewed <span className="font-medium text-[var(--ink)]">{total}</span> {total === 1 ? "card" : "cards"}.
-            </p>
+            <div className="mt-6 flex items-center justify-center gap-6 flex-wrap">
+              <div className="text-center">
+                <p className="font-serif text-[36px] leading-none text-[var(--ink)]">{total}</p>
+                <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>cards</p>
+              </div>
+              <div className="text-center">
+                <p className="font-serif text-[36px] leading-none text-[var(--ink)]">{timeStr}</p>
+                <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>time</p>
+              </div>
+              <div className="text-center">
+                <p className="font-serif text-[36px] leading-none" style={{ color: "var(--accent-deep)" }}>+{sessionXp}</p>
+                <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>XP</p>
+              </div>
+              {streak > 0 && (
+                <div className="text-center">
+                  <p className="font-serif text-[36px] leading-none text-[var(--ink)]">🔥 {streak}</p>
+                  <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>day streak</p>
+                </div>
+              )}
+            </div>
           </div>
 
           <dl className="mt-10 grid grid-cols-4 gap-2">
@@ -217,6 +280,9 @@ export default function ReviewPage() {
           </button>
 
           <div className="flex items-center gap-3">
+            <span className="font-mono text-[11px] tabular-nums" style={{ color: "var(--muted)" }}>
+              {String(Math.floor(sessionSeconds / 60)).padStart(2, "0")}:{String(sessionSeconds % 60).padStart(2, "0")}
+            </span>
             {showProgress && (
               <Eyebrow>
                 <span className="tabular-nums" style={{ color: "var(--ink)" }}>{String(idx + 1).padStart(2, "0")}</span>
