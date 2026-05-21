@@ -1201,8 +1201,8 @@ export default function DeckPage() {
                       ) : (
                         <div className="flex flex-col gap-2 flex-1">
                           {card.image_url && <CardImage path={card.image_url} />}
-                          <p className={`font-serif ${titleSize} leading-snug text-[var(--ink)]`}>{card.front}</p>
-                          <p className={`${bodySize} leading-relaxed`} style={{ color: "var(--ink-soft)" }}>{card.back}</p>
+                          <p className={`font-serif ${titleSize} leading-snug text-[var(--ink)] whitespace-pre-wrap`}>{card.front}</p>
+                          <p className={`${bodySize} leading-relaxed whitespace-pre-wrap`} style={{ color: "var(--ink-soft)" }}>{card.back}</p>
                           {card.hint && <p className="text-[11px]" style={{ color: "var(--muted)" }}><span className="font-mono text-[10px] uppercase tracking-[0.14em] mr-1" style={{ color: "var(--soft)" }}>Hint</span>{card.hint}</p>}
                         </div>
                       )}
@@ -1396,7 +1396,7 @@ export default function DeckPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-4">
-                          <p className="font-serif text-[20px] leading-[1.3] text-[var(--ink)]">{card.front}</p>
+                          <p className="font-serif text-[20px] leading-[1.3] text-[var(--ink)] whitespace-pre-wrap">{card.front}</p>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5">
                             <button
                               onClick={() => startEditCard(card)}
@@ -1443,7 +1443,7 @@ export default function DeckPage() {
                           </div>
                         )}
                         {card.image_url && <CardImage path={card.image_url} className="mt-3" />}
-                        <p className="mt-3 text-[14.5px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
+                        <p className="mt-3 text-[14.5px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
 
                         {card.hint && (
                           <p className="mt-2 text-[13px]" style={{ color: "var(--muted)" }}>

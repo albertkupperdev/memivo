@@ -350,7 +350,7 @@ export default function ReviewPage() {
 
             {card.image_url && <CardImage path={card.image_url} />}
             <Eyebrow>Question</Eyebrow>
-            <p className="mt-4 font-serif text-[34px] sm:text-[40px] leading-[1.15] text-[var(--ink)]">
+            <p className="mt-4 font-serif text-[34px] sm:text-[40px] leading-[1.15] text-[var(--ink)] whitespace-pre-wrap">
               {card.front}
             </p>
 
@@ -392,7 +392,7 @@ export default function ReviewPage() {
                   </div>
                 )}
                 <Eyebrow style={{ color: "var(--accent-deep)" }}>Answer</Eyebrow>
-                <p className="mt-3 text-[17px] sm:text-[18px] leading-[1.65]" style={{ color: "var(--ink-soft)" }}>
+                <p className="mt-3 text-[17px] sm:text-[18px] leading-[1.65] whitespace-pre-wrap" style={{ color: "var(--ink-soft)" }}>
                   {card.back}
                 </p>
 
