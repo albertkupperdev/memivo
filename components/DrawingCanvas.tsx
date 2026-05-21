@@ -1,20 +1,26 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState, useEffect } from "react";
+
+export interface DrawingCanvasHandle {
+  capture: () => string;
+}
 
 const COLORS = ["#1a1a14", "#ef4444", "#3b82f6", "#22c55e", "#f59e0b", "#8b5cf6", "#ffffff"];
 const WIDTHS = [2, 5, 10, 18];
 
 interface Point { x: number; y: number; }
 
-export default function DrawingCanvas({
-  onSave, onCancel, hideActions = false,
-}: {
+const DrawingCanvas = forwardRef<DrawingCanvasHandle, {
   onSave: (blob: Blob) => void;
   onCancel: () => void;
   hideActions?: boolean;
-}) {
+}>(function DrawingCanvas({ onSave, onCancel, hideActions = false }, ref) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    capture: () => canvasRef.current?.toDataURL("image/png") ?? "",
+  }));
   const [color, setColor] = useState(COLORS[0]);
   const [strokeWidth, setStrokeWidth] = useState(WIDTHS[1]);
   const [eraser, setEraser] = useState(false);
@@ -172,4 +178,6 @@ export default function DrawingCanvas({
       )}
     </div>
   );
-}
+});
+
+export default DrawingCanvas;

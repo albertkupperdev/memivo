@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import dynamic from "next/dynamic";
+import type { DrawingCanvasHandle } from "@/components/DrawingCanvas";
 const DrawingCanvas = dynamic(() => import("@/components/DrawingCanvas"), { ssr: false });
 
 function CardImage({ path }: { path: string }) {
@@ -74,6 +75,8 @@ export default function ReviewPage() {
   const [answerChecked, setAnswerChecked] = useState(false);
   const [typeInActive, setTypeInActive] = useState(false);
   const [drawingActive, setDrawingActive] = useState(false);
+  const [drawnImageUrl, setDrawnImageUrl] = useState<string | null>(null);
+  const drawingCanvasRef = useRef<DrawingCanvasHandle>(null);
   const [ratings, setRatings] = useState<ReviewRating[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -130,6 +133,7 @@ export default function ReviewPage() {
     setAnswerChecked(false);
     setTypeInActive(settings.type_in_answer);
     setDrawingActive(false);
+    setDrawnImageUrl(null);
     setSubmitting(false);
   }
 
@@ -375,6 +379,12 @@ export default function ReviewPage() {
 
             {revealed && (
               <div className="mt-10 pt-8" style={{ borderTop: "1px solid var(--border)" }}>
+                {drawnImageUrl && (
+                  <div className="mb-6">
+                    <Eyebrow>Your drawing</Eyebrow>
+                    <img src={drawnImageUrl} alt="Your drawing" className="mt-2 rounded-xl max-h-48 object-contain border" style={{ borderColor: "var(--border)" }} />
+                  </div>
+                )}
                 {answerChecked && typedAnswer && (
                   <div className="mb-6 p-4 rounded-xl" style={{ background: "var(--bg-2)" }}>
                     <Eyebrow>Your answer</Eyebrow>
@@ -416,12 +426,17 @@ export default function ReviewPage() {
               drawingActive || card.require_drawing ? (
                 <div className="flex flex-col gap-3">
                   <DrawingCanvas
+                    ref={drawingCanvasRef}
                     onSave={() => {}}
                     onCancel={() => setDrawingActive(false)}
                     hideActions
                   />
                   <button
-                    onClick={() => setRevealed(true)}
+                    onClick={() => {
+                      const url = drawingCanvasRef.current?.capture();
+                      if (url) setDrawnImageUrl(url);
+                      setRevealed(true);
+                    }}
                     className="w-full inline-flex items-center justify-center gap-2 px-4 py-3.5 text-[15px] font-medium rounded-2xl transition-colors"
                     style={{ background: "var(--ink)", color: "var(--bg)" }}
                   >
