@@ -140,6 +140,7 @@ export default function DeckPage() {
   const [renamePlaylistValue, setRenamePlaylistValue] = useState("");
   const [openCardPlaylistId, setOpenCardPlaylistId] = useState<string | null>(null);
   const [confirmDeletePlaylistId, setConfirmDeletePlaylistId] = useState<string | null>(null);
+  const [expandedPlaylistId, setExpandedPlaylistId] = useState<string | null>(null);
 
   // Scroll-aware header
   const [scrolled, setScrolled] = useState(false);
@@ -858,6 +859,16 @@ export default function DeckPage() {
                         </button>
                       </div>
                       <button
+                        onClick={() => setExpandedPlaylistId(expandedPlaylistId === pl.id ? null : pl.id)}
+                        className="p-1.5 rounded-lg transition-colors hover:bg-[var(--bg-2)]"
+                        style={{ color: "var(--muted)" }}
+                        title={expandedPlaylistId === pl.id ? "Collapse" : "View cards"}
+                      >
+                        <svg viewBox="0 0 24 24" className="w-4 h-4 transition-transform" style={{ transform: expandedPlaylistId === pl.id ? "rotate(180deg)" : "rotate(0deg)" }} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                      </button>
+                      <button
                         onClick={() => router.push(`/review/${id}?playlist=${pl.id}`)}
                         disabled={count === 0}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-xl transition-colors disabled:opacity-40"
@@ -868,6 +879,26 @@ export default function DeckPage() {
                         </svg>
                       </button>
                     </div>
+                    )}
+
+                    {/* Expanded card list */}
+                    {expandedPlaylistId === pl.id && count > 0 && (
+                      <div className="mt-3 flex flex-col" style={{ borderTop: "1px solid var(--border)" }}>
+                        {cards
+                          .filter(c => playlistCardIds.get(pl.id)?.has(c.id))
+                          .map((card, ci) => (
+                            <div key={card.id} className="py-4 flex items-start gap-4" style={{ borderBottom: "1px solid var(--border)" }}>
+                              <span className="flex-shrink-0 font-mono text-[11px] uppercase tracking-[0.14em] tabular-nums mt-1" style={{ color: "var(--soft)" }}>
+                                {String(ci + 1).padStart(2, "0")}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-serif text-[16px] leading-snug text-[var(--ink)] whitespace-pre-wrap">{card.front}</p>
+                                <p className="mt-1 text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
+                                {card.hint && <p className="mt-1 text-[12px] whitespace-pre-wrap" style={{ color: "var(--muted)" }}><span className="font-mono text-[10px] uppercase tracking-[0.14em] mr-1" style={{ color: "var(--soft)" }}>Hint</span>{card.hint}</p>}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
                     )}
                     </div>
                   );
