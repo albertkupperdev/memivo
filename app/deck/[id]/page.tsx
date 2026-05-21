@@ -1119,38 +1119,101 @@ export default function DeckPage() {
                 <Eyebrow>No cards match &ldquo;{cardSearch}&rdquo;</Eyebrow>
               </div>
             );
-            if (viewMode === "grid-small") return (
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                {filtered.map((card) => (
-                  <div key={card.id} className="bg-white rounded-2xl p-4 flex flex-col gap-2" style={{ border: "1px solid var(--border)" }}>
-                    {card.image_url && <CardImage path={card.image_url} />}
-                    <p className="font-serif text-[15px] leading-snug text-[var(--ink)]">{card.front}</p>
-                    <p className="text-[12px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
-                    {card.hint && (
-                      <p className="text-[11px]" style={{ color: "var(--muted)" }}>
-                        <span className="font-mono text-[10px] uppercase tracking-[0.14em] mr-1" style={{ color: "var(--soft)" }}>Hint</span>
-                        {card.hint}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            );
-            if (viewMode === "grid-large") return (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {filtered.map((card) => (
-                  <div key={card.id} className="bg-white rounded-2xl p-6 flex flex-col gap-3" style={{ border: "1px solid var(--border)" }}>
-                    {card.image_url && <CardImage path={card.image_url} />}
-                    <p className="font-serif text-[20px] leading-snug text-[var(--ink)]">{card.front}</p>
-                    <p className="text-[14.5px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
-                    {card.hint && (
-                      <p className="text-[13px]" style={{ color: "var(--muted)" }}>
-                        <span className="font-mono text-[10px] uppercase tracking-[0.14em] mr-1.5" style={{ color: "var(--soft)" }}>Hint</span>
-                        {card.hint}
-                      </p>
-                    )}
-                  </div>
-                ))}
+            const gridCols = viewMode === "grid-small" ? "grid grid-cols-2 lg:grid-cols-3 gap-3" : "grid grid-cols-1 sm:grid-cols-2 gap-4";
+            const isGrid = viewMode === "grid-small" || viewMode === "grid-large";
+            const titleSize = viewMode === "grid-small" ? "text-[15px]" : "text-[20px]";
+            const bodySize = viewMode === "grid-small" ? "text-[12px]" : "text-[14.5px]";
+            const pad = viewMode === "grid-small" ? "p-4" : "p-6";
+
+            if (isGrid) return (
+              <div className={gridCols}>
+                {filtered.map((card) => {
+                  const isDropTarget = dragOverCardId === card.id;
+                  const isDragging = draggingCardId === card.id;
+                  return (
+                    <div
+                      key={card.id}
+                      className={`group relative bg-white rounded-2xl ${pad} flex flex-col`}
+                      style={{
+                        border: `2px solid ${isDropTarget ? (dragCardBefore ? "var(--accent)" : "var(--accent)") : "var(--border)"}`,
+                        boxShadow: isDropTarget ? "inset 4px 0 0 var(--accent)" : undefined,
+                        opacity: isDragging ? 0.4 : 1,
+                        outline: isDropTarget ? "2px solid var(--accent)" : "none",
+                        outlineOffset: -2,
+                      }}
+                      draggable={cardSort === "custom"}
+                      onDragStart={(e) => { if (cardSort !== "custom") return; e.dataTransfer.effectAllowed = "move"; setDraggingCardId(card.id); setDragOverCardId(null); }}
+                      onDragEnd={() => { setDraggingCardId(null); setDragOverCardId(null); }}
+                      onDragOver={(e) => { if (cardSort !== "custom") return; e.preventDefault(); const rect = e.currentTarget.getBoundingClientRect(); setDragOverCardId(card.id); setDragCardBefore(e.clientX < rect.left + rect.width / 2); }}
+                      onDrop={(e) => { e.preventDefault(); if (cardSort === "custom" && draggingCardId && draggingCardId !== card.id) reorderCards(draggingCardId, card.id, dragCardBefore); }}
+                    >
+                      {/* Grip + actions row */}
+                      <div className="flex items-center justify-between mb-2">
+                        {cardSort === "custom" ? (
+                          <svg viewBox="0 0 10 16" className="w-2.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing flex-shrink-0" fill="currentColor" style={{ color: "var(--border-strong)" }}>
+                            <circle cx="2" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/>
+                            <circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/>
+                            <circle cx="2" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/>
+                          </svg>
+                        ) : <span />}
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => startEditCard(card)} className="p-1 rounded hover:bg-[var(--bg-2)]" style={{ color: "var(--muted)" }} title="Edit"><PencilIcon /></button>
+                          <button onClick={() => { setEditingCardId(null); setConfirmDeleteCardId(card.id); }} className="p-1 rounded hover:bg-[var(--bg-2)]" style={{ color: "var(--muted)" }} title="Delete"><TrashIcon /></button>
+                          {playlists.length > 0 && (
+                            <button onClick={() => setOpenCardPlaylistId(openCardPlaylistId === card.id ? null : card.id)} className="p-1 rounded hover:bg-[var(--bg-2)]" style={{ color: openCardPlaylistId === card.id ? "var(--accent-deep)" : "var(--muted)" }} title="Playlists">
+                              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Edit mode */}
+                      {editingCardId === card.id ? (
+                        <div className="flex flex-col gap-2 flex-1">
+                          <textarea value={editFront} onChange={e => setEditFront(e.target.value)} rows={2} placeholder="Front" className={`w-full font-serif ${titleSize} bg-transparent outline-none border-b resize-none`} style={{ borderColor: "var(--border-strong)", color: "var(--ink)" }} />
+                          <textarea value={editBack} onChange={e => setEditBack(e.target.value)} rows={3} placeholder="Back" className={`w-full ${bodySize} bg-transparent outline-none border-b resize-none`} style={{ borderColor: "var(--border-strong)", color: "var(--ink-soft)" }} />
+                          <input value={editHint} onChange={e => setEditHint(e.target.value)} placeholder="Hint (optional)" className="w-full text-[12px] bg-transparent outline-none border-b" style={{ borderColor: "var(--border-strong)", color: "var(--muted)" }} />
+                          <div className="mt-2 flex gap-2">
+                            <button onClick={saveCard} disabled={savingCard || !editFront.trim() || !editBack.trim()} className="px-2.5 py-1 text-xs font-medium rounded-lg text-white disabled:opacity-50" style={{ background: "var(--ink)" }}>{savingCard ? "…" : "Save"}</button>
+                            <button onClick={() => { setEditingCardId(null); setSaveCardError(null); }} className="px-2.5 py-1 text-xs font-medium" style={{ color: "var(--muted)" }}>Cancel</button>
+                          </div>
+                          {saveCardError && <span className="text-[11px]" style={{ color: "var(--complement-deep)" }}>{saveCardError}</span>}
+                        </div>
+                      ) : confirmDeleteCardId === card.id ? (
+                        <div className="flex-1">
+                          <p className="text-[13px] font-medium text-[var(--ink)] mb-3">{card.front}</p>
+                          <div className="flex gap-2">
+                            <button onClick={() => deleteCard(card.id)} disabled={deletingCardId === card.id} className="px-2.5 py-1 text-xs font-medium rounded-lg text-white disabled:opacity-50" style={{ background: "var(--complement)" }}>{deletingCardId === card.id ? "…" : "Delete"}</button>
+                            <button onClick={() => setConfirmDeleteCardId(null)} className="px-2.5 py-1 text-xs font-medium" style={{ color: "var(--muted)" }}>Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-2 flex-1">
+                          {card.image_url && <CardImage path={card.image_url} />}
+                          <p className={`font-serif ${titleSize} leading-snug text-[var(--ink)]`}>{card.front}</p>
+                          <p className={`${bodySize} leading-relaxed`} style={{ color: "var(--ink-soft)" }}>{card.back}</p>
+                          {card.hint && <p className="text-[11px]" style={{ color: "var(--muted)" }}><span className="font-mono text-[10px] uppercase tracking-[0.14em] mr-1" style={{ color: "var(--soft)" }}>Hint</span>{card.hint}</p>}
+                        </div>
+                      )}
+
+                      {/* Playlist picker */}
+                      {openCardPlaylistId === card.id && playlists.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {playlists.map(pl => {
+                            const inPl = playlistCardIds.get(pl.id)?.has(card.id);
+                            return (
+                              <button key={pl.id} onClick={() => toggleCardInPlaylist(pl.id, card.id)}
+                                className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-full transition-colors"
+                                style={{ background: inPl ? "var(--ink)" : "var(--bg-2)", color: inPl ? "var(--bg)" : "var(--muted)" }}>
+                                {inPl ? "✓ " : "+ "}{pl.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             );
             return (
