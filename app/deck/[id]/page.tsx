@@ -64,6 +64,9 @@ export default function DeckPage() {
   const [sources, setSources] = useState<DocumentSource[]>([]);
   const [cardXpMap, setCardXpMap] = useState<Map<string, number>>(new Map());
   const [cardReviewCountMap, setCardReviewCountMap] = useState<Map<string, number>>(new Map());
+  const [cardDueDateMap, setCardDueDateMap] = useState<Map<string, string>>(new Map());
+  const [confirmPlaylistReviewId, setConfirmPlaylistReviewId] = useState<string | null>(null);
+  const [resettingPlaylist, setResettingPlaylist] = useState(false);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [playlistCardIds, setPlaylistCardIds] = useState<Map<string, Set<string>>>(new Map());
   const [cards, setCards] = useState<Card[]>([]);
@@ -213,6 +216,7 @@ export default function DeckPage() {
         setDueCount(existing.filter((c) => { const d = reviewedMap.get(c.id); return !d || d <= today; }).length);
         setCardXpMap(new Map(reviews?.map((r) => [r.card_id, r.card_xp ?? 0]) ?? []));
         setCardReviewCountMap(new Map(reviews?.map((r) => [r.card_id, r.review_count ?? 0]) ?? []));
+        setCardDueDateMap(new Map(reviews?.map((r) => [r.card_id, r.due_date]) ?? []));
 
         const { data: chunks } = await supabase
           .from("chunks")
@@ -528,7 +532,15 @@ export default function DeckPage() {
     }
   }
 
-  const PLAYLIST_COLORS = ["#ef4444","#f97316","#eab308","#22c55e","#3b82f6","#8b5cf6","#ec4899","#6b7280"];
+  async function resetPlaylistAndReview(plId: string) {
+    setResettingPlaylist(true);
+    await fetch(`/api/playlists/${plId}/reset-cooldowns`, { method: "POST" });
+    setResettingPlaylist(false);
+    setConfirmPlaylistReviewId(null);
+    router.push(`/review/${id}?playlist=${plId}`);
+  }
+
+  const PLAYLIST_COLORS =["#ef4444","#f97316","#eab308","#22c55e","#3b82f6","#8b5cf6","#ec4899","#6b7280"];
 
   async function setPlaylistColor(plId: string, color: string | null) {
     setPlaylists(prev => prev.map(p => p.id === plId ? { ...p, color } : p));
@@ -1016,7 +1028,14 @@ export default function DeckPage() {
                         </svg>
                       </button>
                       <button
-                        onClick={() => router.push(`/review/${id}?playlist=${pl.id}`)}
+                        onClick={() => {
+                          if (count === 0) return;
+                          const today = new Date().toISOString().split("T")[0];
+                          const cardIds = [...(playlistCardIds.get(pl.id) ?? [])];
+                          const anyDue = cardIds.some(cid => { const d = cardDueDateMap.get(cid); return !d || d <= today; });
+                          if (!anyDue) { setConfirmPlaylistReviewId(pl.id); }
+                          else { router.push(`/review/${id}?playlist=${pl.id}`); }
+                        }}
                         disabled={count === 0}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-xl transition-colors disabled:opacity-40"
                         style={{ background: "var(--ink)", color: "var(--bg)" }}>
@@ -1026,6 +1045,27 @@ export default function DeckPage() {
                         </svg>
                       </button>
                     </div>
+                    )}
+
+                    {/* Review confirmation (all cards reviewed) */}
+                    {confirmPlaylistReviewId === pl.id && (
+                      <div className="p-4 rounded-xl" style={{ background: "var(--accent-bg)", border: "1px solid var(--accent-tint)" }}>
+                        <p className="text-[14px] leading-relaxed" style={{ color: "var(--ink)" }}>
+                          This will reset the timers on all cards in this playlist. Review playlist?
+                        </p>
+                        <div className="mt-3 flex gap-2">
+                          <button onClick={() => resetPlaylistAndReview(pl.id)} disabled={resettingPlaylist}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl text-white disabled:opacity-50"
+                            style={{ background: "var(--ink)" }}>
+                            {resettingPlaylist ? "Resetting…" : "Yes, review"}
+                          </button>
+                          <button onClick={() => setConfirmPlaylistReviewId(null)}
+                            className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium"
+                            style={{ color: "var(--muted)" }}>
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
                     )}
 
                     {/* Color picker */}
