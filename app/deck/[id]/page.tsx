@@ -148,6 +148,7 @@ export default function DeckPage() {
   const [openCardPlaylistId, setOpenCardPlaylistId] = useState<string | null>(null);
   const [confirmDeletePlaylistId, setConfirmDeletePlaylistId] = useState<string | null>(null);
   const [expandedPlaylistId, setExpandedPlaylistId] = useState<string | null>(null);
+  const [colorPickerPlaylistId, setColorPickerPlaylistId] = useState<string | null>(null);
   const [addingCardToPlaylistId, setAddingCardToPlaylistId] = useState<string | null>(null);
   const [playlistNewFront, setPlaylistNewFront] = useState("");
   const [playlistNewBack, setPlaylistNewBack] = useState("");
@@ -525,6 +526,17 @@ export default function DeckPage() {
       setNewPlaylistName("");
       setCreatingPlaylist(false);
     }
+  }
+
+  const PLAYLIST_COLORS = ["#ef4444","#f97316","#eab308","#22c55e","#3b82f6","#8b5cf6","#ec4899","#6b7280"];
+
+  async function setPlaylistColor(plId: string, color: string | null) {
+    setPlaylists(prev => prev.map(p => p.id === plId ? { ...p, color } : p));
+    await fetch(`/api/playlists/${plId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: playlists.find(p => p.id === plId)!.name, color }),
+    });
   }
 
   async function reorderPlaylists(draggedId: string, targetId: string, before: boolean) {
@@ -921,6 +933,7 @@ export default function DeckPage() {
                         border: `1px solid ${confirmDeletePlaylistId === pl.id ? "var(--complement-border)" : isDropTarget ? "var(--accent)" : "var(--border)"}`,
                         background: confirmDeletePlaylistId === pl.id ? "var(--complement-bg)" : isDropTarget ? "var(--accent-bg)" : "white",
                         opacity: draggingPlaylistId === pl.id ? 0.4 : 1,
+                        borderLeft: pl.color ? `4px solid ${pl.color}` : undefined,
                       }}
                       draggable={playlistSort === "custom"}
                       onDragStart={e => { if (playlistSort !== "custom") return; e.dataTransfer.effectAllowed = "move"; setDraggingPlaylistId(pl.id); }}
@@ -951,7 +964,13 @@ export default function DeckPage() {
                           <circle cx="2" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/>
                         </svg>
                       )}
-                      <svg viewBox="0 0 24 24" className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--muted)" }}>
+                      <button
+                        onClick={() => setColorPickerPlaylistId(colorPickerPlaylistId === pl.id ? null : pl.id)}
+                        className="w-5 h-5 rounded-full flex-shrink-0 border-2 transition-all"
+                        style={{ background: pl.color ?? "var(--bg-2)", borderColor: colorPickerPlaylistId === pl.id ? "var(--ink)" : "var(--border-strong)" }}
+                        title="Change color"
+                      />
+                      <svg viewBox="0 0 24 24" className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: pl.color ?? "var(--muted)" }}>
                         <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
                       </svg>
                       <div className="flex-1 min-w-0">
@@ -1007,6 +1026,25 @@ export default function DeckPage() {
                         </svg>
                       </button>
                     </div>
+                    )}
+
+                    {/* Color picker */}
+                    {colorPickerPlaylistId === pl.id && (
+                      <div className="flex items-center gap-2 pt-1 flex-wrap">
+                        {PLAYLIST_COLORS.map(c => (
+                          <button key={c} onClick={() => { setPlaylistColor(pl.id, c); setColorPickerPlaylistId(null); }}
+                            className="w-6 h-6 rounded-full transition-transform hover:scale-110"
+                            style={{ background: c, outline: pl.color === c ? `2px solid var(--ink)` : "none", outlineOffset: 2 }}
+                          />
+                        ))}
+                        {pl.color && (
+                          <button onClick={() => { setPlaylistColor(pl.id, null); setColorPickerPlaylistId(null); }}
+                            className="font-mono text-[11px] uppercase tracking-[0.12em] px-2 py-0.5 rounded-full"
+                            style={{ background: "var(--bg-2)", color: "var(--muted)" }}>
+                            Remove
+                          </button>
+                        )}
+                      </div>
                     )}
 
                     {/* Expanded card list */}

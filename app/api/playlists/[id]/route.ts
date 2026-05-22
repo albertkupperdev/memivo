@@ -27,6 +27,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     updates.name = body.name.trim();
   }
   if ("position" in body) updates.position = body.position;
+  if ("color" in body) updates.color = body.color ?? null;
 
   const { data, error } = await supabase.from("playlists").update(updates).eq("id", id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

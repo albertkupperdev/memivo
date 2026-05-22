@@ -4,6 +4,8 @@ export interface Playlist {
   id: string;
   document_id: string;
   name: string;
+  color: string | null;
+  position: number | null;
   created_at: string;
 }
 
