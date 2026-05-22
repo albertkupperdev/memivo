@@ -353,8 +353,8 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
               return (
                 <div
                   key={folder.id}
-                  onDragOver={(e) => { e.preventDefault(); if (!dragOverDeckId) setDragOverTarget(folder.id); }}
-                  onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverTarget(null); }}
+                  onDragOver={(e) => { e.preventDefault(); dragOverDeckRef.current = null; setDragOverDeckId(null); setDragOverTarget(folder.id); }}
+                  onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setDragOverTarget(null); dragOverDeckRef.current = null; setDragOverDeckId(null); } }}
                   onDrop={(e) => {
                     e.preventDefault();
                     if (dragOverDeckRef.current) return;
@@ -439,8 +439,8 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
 
             {(unfiledDecks.length > 0 || (draggingDeckId && decks.find(d => d.id === draggingDeckId)?.folder_id)) && (
               <div
-                onDragOver={(e) => { e.preventDefault(); if (!dragOverDeckId) setDragOverTarget("unfiled"); }}
-                onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverTarget(null); }}
+                onDragOver={(e) => { e.preventDefault(); dragOverDeckRef.current = null; setDragOverDeckId(null); setDragOverTarget("unfiled"); }}
+                onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setDragOverTarget(null); dragOverDeckRef.current = null; setDragOverDeckId(null); } }}
                 onDrop={(e) => {
                   e.preventDefault();
                   if (dragOverDeckRef.current) return;
