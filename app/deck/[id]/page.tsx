@@ -137,6 +137,10 @@ export default function DeckPage() {
   const [dragCardBefore, setDragCardBefore] = useState(true);
 
   // Playlist UI
+  const [playlistSort, setPlaylistSort] = useState<"custom" | "name-asc" | "name-desc" | "reviews" | "cards">("custom");
+  const [draggingPlaylistId, setDraggingPlaylistId] = useState<string | null>(null);
+  const [dragOverPlaylistId, setDragOverPlaylistId] = useState<string | null>(null);
+  const [dragPlaylistBefore, setDragPlaylistBefore] = useState(true);
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [renamingPlaylistId, setRenamingPlaylistId] = useState<string | null>(null);
@@ -523,6 +527,25 @@ export default function DeckPage() {
     }
   }
 
+  async function reorderPlaylists(draggedId: string, targetId: string, before: boolean) {
+    const without = playlists.filter(p => p.id !== draggedId);
+    const dragged = playlists.find(p => p.id === draggedId)!;
+    const targetIdx = without.findIndex(p => p.id === targetId);
+    const insertAt = before ? targetIdx : targetIdx + 1;
+    without.splice(insertAt, 0, dragged);
+    const reordered = without.map((p, i) => ({ ...p, position: i }));
+    setPlaylists(reordered);
+    setDraggingPlaylistId(null);
+    setDragOverPlaylistId(null);
+    await Promise.all(reordered.map(p =>
+      fetch(`/api/playlists/${p.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: p.name, position: p.position }),
+      })
+    ));
+  }
+
   async function renamePlaylist(plId: string, name: string) {
     const res = await fetch(`/api/playlists/${plId}`, {
       method: "PATCH",
@@ -828,6 +851,17 @@ export default function DeckPage() {
               <h2 className="font-serif text-[28px] leading-tight text-[var(--ink)]">Playlists</h2>
               <div className="flex items-center gap-3">
                 <Eyebrow>{playlists.length} total</Eyebrow>
+                {playlists.length > 1 && (
+                  <select value={playlistSort} onChange={e => setPlaylistSort(e.target.value as typeof playlistSort)}
+                    className="px-2 py-1 rounded-lg text-[12px] font-mono bg-white outline-none appearance-none cursor-pointer"
+                    style={{ border: "1px solid var(--border)", color: "var(--muted)" }}>
+                    <option value="custom">Sort: Custom</option>
+                    <option value="name-asc">Sort: A→Z</option>
+                    <option value="name-desc">Sort: Z→A</option>
+                    <option value="reviews">Sort: Most reviewed</option>
+                    <option value="cards">Sort: Most cards</option>
+                  </select>
+                )}
                 {!creatingPlaylist && (
                   <button onClick={() => { setCreatingPlaylist(true); setNewPlaylistName(""); }}
                     className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
@@ -866,10 +900,34 @@ export default function DeckPage() {
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                {playlists.map(pl => {
+                {[...playlists].sort((a, b) => {
+                  if (playlistSort === "name-asc") return a.name.localeCompare(b.name);
+                  if (playlistSort === "name-desc") return b.name.localeCompare(a.name);
+                  if (playlistSort === "reviews") {
+                    const ra = [...(playlistCardIds.get(a.id) ?? [])].reduce((s, cid) => s + (cardReviewCountMap.get(cid) ?? 0), 0);
+                    const rb = [...(playlistCardIds.get(b.id) ?? [])].reduce((s, cid) => s + (cardReviewCountMap.get(cid) ?? 0), 0);
+                    return rb - ra;
+                  }
+                  if (playlistSort === "cards") return (playlistCardIds.get(b.id)?.size ?? 0) - (playlistCardIds.get(a.id)?.size ?? 0);
+                  return (a.position ?? 99999) - (b.position ?? 99999);
+                }).map(pl => {
                   const count = playlistCardIds.get(pl.id)?.size ?? 0;
+                  const isDropTarget = dragOverPlaylistId === pl.id;
                   return (
-                    <div key={pl.id} className="group bg-white rounded-2xl px-6 py-4 flex flex-col gap-3" style={{ border: `1px solid ${confirmDeletePlaylistId === pl.id ? "var(--complement-border)" : "var(--border)"}`, background: confirmDeletePlaylistId === pl.id ? "var(--complement-bg)" : "white" }}>
+                    <div
+                      key={pl.id}
+                      className="group bg-white rounded-2xl px-6 py-4 flex flex-col gap-3"
+                      style={{
+                        border: `1px solid ${confirmDeletePlaylistId === pl.id ? "var(--complement-border)" : isDropTarget ? "var(--accent)" : "var(--border)"}`,
+                        background: confirmDeletePlaylistId === pl.id ? "var(--complement-bg)" : isDropTarget ? "var(--accent-bg)" : "white",
+                        opacity: draggingPlaylistId === pl.id ? 0.4 : 1,
+                      }}
+                      draggable={playlistSort === "custom"}
+                      onDragStart={e => { if (playlistSort !== "custom") return; e.dataTransfer.effectAllowed = "move"; setDraggingPlaylistId(pl.id); }}
+                      onDragEnd={() => { setDraggingPlaylistId(null); setDragOverPlaylistId(null); }}
+                      onDragOver={e => { if (playlistSort !== "custom") return; e.preventDefault(); const rect = e.currentTarget.getBoundingClientRect(); setDragOverPlaylistId(pl.id); setDragPlaylistBefore(e.clientY < rect.top + rect.height / 2); }}
+                      onDrop={e => { e.preventDefault(); if (playlistSort === "custom" && draggingPlaylistId && draggingPlaylistId !== pl.id) reorderPlaylists(draggingPlaylistId, pl.id, dragPlaylistBefore); }}
+                    >
                     {confirmDeletePlaylistId === pl.id ? (
                       <div className="flex items-center justify-between gap-4">
                         <p className="text-[14px]" style={{ color: "var(--complement-deeper)" }}>
@@ -886,6 +944,13 @@ export default function DeckPage() {
                       </div>
                     ) : (
                     <div className="flex items-center gap-4">
+                      {playlistSort === "custom" && (
+                        <svg viewBox="0 0 10 16" className="w-2.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing flex-shrink-0" fill="currentColor" style={{ color: "var(--border-strong)" }}>
+                          <circle cx="2" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/>
+                          <circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/>
+                          <circle cx="2" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/>
+                        </svg>
+                      )}
                       <svg viewBox="0 0 24 24" className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--muted)" }}>
                         <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
                       </svg>

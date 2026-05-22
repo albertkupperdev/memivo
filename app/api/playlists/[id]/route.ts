@@ -20,10 +20,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   if (!await verifyOwner(supabase, id, user.id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const { name } = await request.json();
-  if (!name?.trim()) return NextResponse.json({ error: "name required" }, { status: 400 });
+  const body = await request.json();
+  const updates: Record<string, unknown> = {};
+  if ("name" in body) {
+    if (!body.name?.trim()) return NextResponse.json({ error: "name required" }, { status: 400 });
+    updates.name = body.name.trim();
+  }
+  if ("position" in body) updates.position = body.position;
 
-  const { data, error } = await supabase.from("playlists").update({ name: name.trim() }).eq("id", id).select().single();
+  const { data, error } = await supabase.from("playlists").update(updates).eq("id", id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }
