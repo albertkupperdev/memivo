@@ -180,7 +180,7 @@ export default function ReviewPage() {
   }, []);
 
   const total = cards.length;
-  const done = idx >= total;
+  const done = loaded && total > 0 && idx >= total;
 
   // Stop timer when session completes
   useEffect(() => {
