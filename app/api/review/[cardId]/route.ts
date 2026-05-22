@@ -34,7 +34,7 @@ export async function POST(
 
   const { data: existing } = await supabase
     .from("card_reviews")
-    .select("ease_factor, interval_days, repetitions, card_xp")
+    .select("ease_factor, interval_days, repetitions, card_xp, review_count")
     .eq("card_id", cardId)
     .eq("user_id", user.id)
     .single();
@@ -53,6 +53,7 @@ export async function POST(
       due_date: next.due_date,
       last_reviewed_at: new Date().toISOString(),
       card_xp: (existing?.card_xp ?? 0) + (CARD_XP_PER_RATING[rating] ?? 0),
+      review_count: (existing?.review_count ?? 0) + 1,
     },
     { onConflict: "card_id,user_id" }
   );

@@ -63,6 +63,7 @@ export default function DeckPage() {
   const [document, setDocument] = useState<Document | null>(null);
   const [sources, setSources] = useState<DocumentSource[]>([]);
   const [cardXpMap, setCardXpMap] = useState<Map<string, number>>(new Map());
+  const [cardReviewCountMap, setCardReviewCountMap] = useState<Map<string, number>>(new Map());
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [playlistCardIds, setPlaylistCardIds] = useState<Map<string, Set<string>>>(new Map());
   const [cards, setCards] = useState<Card[]>([]);
@@ -201,11 +202,12 @@ export default function DeckPage() {
         const today = new Date().toISOString().split("T")[0];
         const { data: reviews } = await supabase
           .from("card_reviews")
-          .select("card_id, due_date, card_xp")
+          .select("card_id, due_date, card_xp, review_count")
           .in("card_id", existing.map((c) => c.id));
         const reviewedMap = new Map(reviews?.map((r) => [r.card_id, r.due_date]));
         setDueCount(existing.filter((c) => { const d = reviewedMap.get(c.id); return !d || d <= today; }).length);
         setCardXpMap(new Map(reviews?.map((r) => [r.card_id, r.card_xp ?? 0]) ?? []));
+        setCardReviewCountMap(new Map(reviews?.map((r) => [r.card_id, r.review_count ?? 0]) ?? []));
 
         const { data: chunks } = await supabase
           .from("chunks")
@@ -902,6 +904,12 @@ export default function DeckPage() {
                           <span className="font-serif text-[18px] text-[var(--ink)]">{pl.name}</span>
                         )}
                         <span className="ml-3 font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>{count} cards</span>
+                        {(() => {
+                          const totalReviews = [...(playlistCardIds.get(pl.id) ?? [])].reduce((sum, cid) => sum + (cardReviewCountMap.get(cid) ?? 0), 0);
+                          return totalReviews > 0 ? (
+                            <span className="ml-2 font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--soft)" }}>· reviewed {totalReviews}×</span>
+                          ) : null;
+                        })()}
                       </div>
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={() => { setRenamingPlaylistId(pl.id); setRenamePlaylistValue(pl.name); }}
