@@ -6,6 +6,7 @@ export interface Playlist {
   name: string;
   color: string | null;
   position: number | null;
+  review_count: number;
   created_at: string;
 }
 

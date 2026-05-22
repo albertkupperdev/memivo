@@ -538,6 +538,7 @@ export default function DeckPage() {
     setResettingPlaylist(false);
     setConfirmPlaylistReviewId(null);
     router.push(`/review/${id}?playlist=${plId}`);
+    // Note: review_count was already incremented when the Review button was clicked
   }
 
   const PLAYLIST_COLORS =["#ef4444","#f97316","#eab308","#22c55e","#3b82f6","#8b5cf6","#ec4899","#6b7280"];
@@ -1000,12 +1001,9 @@ export default function DeckPage() {
                           <span className="font-serif text-[18px] text-[var(--ink)]">{pl.name}</span>
                         )}
                         <span className="ml-3 font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>{count} cards</span>
-                        {(() => {
-                          const totalReviews = [...(playlistCardIds.get(pl.id) ?? [])].reduce((sum, cid) => sum + (cardReviewCountMap.get(cid) ?? 0), 0);
-                          return totalReviews > 0 ? (
-                            <span className="ml-2 font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--soft)" }}>· reviewed {totalReviews}×</span>
-                          ) : null;
-                        })()}
+                        {pl.review_count > 0 && (
+                          <span className="ml-2 font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--soft)" }}>· reviewed {pl.review_count}×</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={() => { setRenamingPlaylistId(pl.id); setRenamePlaylistValue(pl.name); }}
@@ -1033,6 +1031,10 @@ export default function DeckPage() {
                           const today = new Date().toISOString().split("T")[0];
                           const cardIds = [...(playlistCardIds.get(pl.id) ?? [])];
                           const anyDue = cardIds.some(cid => { const d = cardDueDateMap.get(cid); return !d || d <= today; });
+                          // Increment review count
+                          const newCount = (pl.review_count ?? 0) + 1;
+                          setPlaylists(prev => prev.map(p => p.id === pl.id ? { ...p, review_count: newCount } : p));
+                          fetch(`/api/playlists/${pl.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: pl.name, review_count: newCount }) });
                           if (!anyDue) { setConfirmPlaylistReviewId(pl.id); }
                           else { router.push(`/review/${id}?playlist=${pl.id}`); }
                         }}
