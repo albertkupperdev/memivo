@@ -86,7 +86,7 @@ export default function ReviewPage() {
     async function load() {
       const supabase = createClient();
       fetch("/api/settings").then(r => r.json()).then(s => { setSettings(s); setTypeInActive(s.type_in_answer ?? false); }).catch(() => {});
-      const today = new Date().toISOString().split("T")[0];
+      const now = new Date().toISOString();
       const { data: allCards } = await supabase.from("cards").select("*").eq("document_id", id);
       if (!allCards || allCards.length === 0) { setNoCards(true); setLoaded(true); return; }
       const { data: reviews } = await supabase.from("card_reviews").select("card_id, due_date").in("card_id", allCards.map((c) => c.id));
@@ -98,7 +98,7 @@ export default function ReviewPage() {
         const ids = new Set((pcRows ?? []).map(r => r.card_id));
         eligibleCards = allCards.filter(c => ids.has(c.id));
       }
-      const allDue = eligibleCards.filter((c) => { const d = reviewedMap.get(c.id); return !d || d <= today; });
+      const allDue = eligibleCards.filter((c) => { const d = reviewedMap.get(c.id); return !d || d <= now; });
       const due = limit ? allDue.slice(0, limit) : allDue;
 
       const { data: chunks } = await supabase

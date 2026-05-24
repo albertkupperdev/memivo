@@ -46,7 +46,7 @@ export function applyReview(state: CardState, rating: ReviewRating, settings?: U
 
   const due = new Date();
   due.setTime(due.getTime() + interval_days * 24 * 60 * 60 * 1000);
-  const due_date = due.toISOString().split("T")[0];
+  const due_date = due.toISOString();
 
   return { ease_factor, interval_days, repetitions, due_date };
 }

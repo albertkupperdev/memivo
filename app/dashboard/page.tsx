@@ -50,7 +50,7 @@ export default async function DashboardPage() {
     .eq("user_id", user.id)
     .in("card_id", (cards ?? []).map((c) => c.id));
 
-  const today = new Date().toISOString().split("T")[0];
+  const now = new Date().toISOString();
   const reviewedMap = new Map(reviews?.map((r) => [r.card_id, r.due_date]));
 
   const cardXpMap = new Map(reviews?.map(r => [r.card_id, r.card_xp ?? 0]) ?? []);
@@ -59,7 +59,7 @@ export default async function DashboardPage() {
     const docCards = cards?.filter((c) => c.document_id === doc.id) ?? [];
     const dueCount = docCards.filter((c) => {
       const due = reviewedMap.get(c.id);
-      return !due || due <= today;
+      return !due || due <= now;
     }).length;
     const { level: deckLevel, deckXp } = getDeckLevel(cardXpMap, docCards.map(c => c.id));
     return { ...doc, cardCount: docCards.length, dueCount, deckLevel, deckXp };

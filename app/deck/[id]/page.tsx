@@ -207,13 +207,13 @@ export default function DeckPage() {
       const { data: existing } = await supabase.from("cards").select("*").eq("document_id", id).order("position", { ascending: true, nullsFirst: false });
       if (existing && existing.length > 0) {
         setCards(existing);
-        const today = new Date().toISOString().split("T")[0];
+        const now = new Date().toISOString();
         const { data: reviews } = await supabase
           .from("card_reviews")
           .select("card_id, due_date, card_xp, review_count")
           .in("card_id", existing.map((c) => c.id));
         const reviewedMap = new Map(reviews?.map((r) => [r.card_id, r.due_date]));
-        setDueCount(existing.filter((c) => { const d = reviewedMap.get(c.id); return !d || d <= today; }).length);
+        setDueCount(existing.filter((c) => { const d = reviewedMap.get(c.id); return !d || d <= now; }).length);
         setCardXpMap(new Map(reviews?.map((r) => [r.card_id, r.card_xp ?? 0]) ?? []));
         setCardReviewCountMap(new Map(reviews?.map((r) => [r.card_id, r.review_count ?? 0]) ?? []));
         setCardDueDateMap(new Map(reviews?.map((r) => [r.card_id, r.due_date]) ?? []));
