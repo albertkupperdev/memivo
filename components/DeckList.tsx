@@ -78,6 +78,9 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
   const dragOverDeckRef = useRef<string | null>(null);
   const dragInsertBeforeRef = useRef(true);
 
+  // Collapsed folders
+  const [closedFolderIds, setClosedFolderIds] = useState<Set<string>>(new Set());
+
   // Search
   const [query, setQuery] = useState("");
 
@@ -355,6 +358,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
             {filteredFolders.map((folder) => {
               const folderDecks = applySortBy(filteredDecks.filter((d) => d.folder_id === folder.id), sortBy);
               const isOver = dragOverTarget === folder.id;
+              const isClosed = closedFolderIds.has(folder.id);
               return (
                 <div
                   key={folder.id}
@@ -388,12 +392,21 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
                       />
                     ) : (
                       <div className="group flex items-center gap-2">
-                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--muted)" }}>
-                          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-                        </svg>
-                        <Eyebrow>{folder.name}</Eyebrow>
-                        <span className="font-mono text-[11px]" style={{ color: "var(--border-strong)" }}>·</span>
-                        <Eyebrow>{folderDecks.length}</Eyebrow>
+                        <button
+                          onClick={() => setClosedFolderIds(prev => { const s = new Set(prev); s.has(folder.id) ? s.delete(folder.id) : s.add(folder.id); return s; })}
+                          className="flex items-center gap-2 transition-opacity"
+                          title={isClosed ? "Expand folder" : "Collapse folder"}
+                        >
+                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 flex-shrink-0 transition-transform" style={{ color: "var(--muted)", transform: isClosed ? "rotate(-90deg)" : "rotate(0deg)" }} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M6 9l6 6 6-6"/>
+                          </svg>
+                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--muted)" }}>
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                          </svg>
+                          <Eyebrow>{folder.name}</Eyebrow>
+                          <span className="font-mono text-[11px]" style={{ color: "var(--border-strong)" }}>·</span>
+                          <Eyebrow>{folderDecks.length}</Eyebrow>
+                        </button>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button onClick={() => { setRenamingFolderId(folder.id); setRenameValue(folder.name); }} className="p-1 rounded hover:bg-[var(--bg-2)]" style={{ color: "var(--muted)" }} title="Rename">
                             <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
@@ -406,7 +419,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
                     )}
                   </div>
 
-                  {folderDecks.length === 0 ? (
+                  {!isClosed && (folderDecks.length === 0 ? (
                     <div className="rounded-2xl p-6 text-center" style={{ border: `1px dashed ${isOver ? "var(--accent)" : "var(--border-strong)"}` }}>
                       <Eyebrow style={{ color: isOver ? "var(--accent-deep)" : undefined }}>{isOver ? "Drop here" : "No decks yet"}</Eyebrow>
                     </div>
@@ -437,7 +450,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
                         />
                       ))}
                     </ul>
-                  )}
+                  ))}
                 </div>
               );
             })}

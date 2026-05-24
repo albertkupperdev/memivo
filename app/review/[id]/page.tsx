@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import dynamic from "next/dynamic";
 import type { DrawingCanvasHandle } from "@/components/DrawingCanvas";
@@ -81,6 +82,7 @@ export default function ReviewPage() {
   const [loaded, setLoaded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [noCards, setNoCards] = useState(false);
+  const [noDue, setNoDue] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -104,6 +106,8 @@ export default function ReviewPage() {
       const nowMs = Date.now();
       const allDue = eligibleCards.filter((c) => { const d = reviewedMap.get(c.id); return !d || new Date(d).getTime() <= nowMs; });
       const due = limit ? allDue.slice(0, limit) : allDue;
+
+      if (due.length === 0) { setNoDue(true); setLoaded(true); return; }
 
       const { data: chunks } = await supabase
         .from("chunks")
@@ -145,8 +149,7 @@ export default function ReviewPage() {
     const onKey = (e: KeyboardEvent) => {
       if (!loaded || idx >= cards.length) return;
       if (e.key === "Escape") { router.push(`/deck/${id}`); return; }
-      if (e.key === " " && !typeInActive) { e.preventDefault(); if (!revealed) setRevealed(true); }
-      if (e.key === "Enter" && !revealed && !typeInActive) { e.preventDefault(); setTypeInActive(true); }
+      if ((e.key === " " || e.key === "Enter") && !typeInActive) { e.preventDefault(); if (!revealed) setRevealed(true); }
       if (revealed) {
         if (e.key === "1") rate("again");
         if (e.key === "2") rate("hard");
@@ -209,6 +212,36 @@ export default function ReviewPage() {
   if (!loaded) return <Shell message="Loading…" />;
   if (noCards) return <Shell message="No cards found." />;
 
+  if (noDue) {
+    const playlistId = searchParams.get("playlist");
+    return (
+      <div className="flex-1 w-full flex items-center justify-center">
+        <div className="max-w-sm text-center px-6 py-20">
+          <Eyebrow>All caught up</Eyebrow>
+          <h1 className="mt-3 font-serif text-[48px] leading-[1.05] text-[var(--ink)]">No cards due.</h1>
+          <p className="mt-3 text-[15px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>
+            Come back later, or reset cooldowns to review everything now.
+          </p>
+          <div className="mt-8 flex flex-col items-center gap-3">
+            <button
+              onClick={async () => {
+                const url = playlistId ? `/api/playlists/${playlistId}/reset-cooldowns` : `/api/documents/${id}/reset-cooldowns`;
+                await fetch(url, { method: "POST" });
+                window.location.reload();
+              }}
+              className="inline-flex items-center justify-center px-6 py-3 text-[15px] font-medium rounded-2xl text-white"
+              style={{ background: "var(--ink)" }}
+            >
+              Reset cooldowns
+            </button>
+            <Link href={`/deck/${id}`} className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>
+              Back to deck
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (done) {
     const counts = ratings.reduce<Record<ReviewRating, number>>(
@@ -445,7 +478,7 @@ export default function ReviewPage() {
                     style={{ background: "var(--ink)", color: "var(--bg)" }}
                   >
                     Show answer
-                    <span className="text-[22px] leading-none opacity-60">␣</span>
+                    <span className="text-[18px] leading-none opacity-60 flex items-center gap-1">␣ ↵</span>
                   </button>
                 </div>
               ) : typeInActive ? (
@@ -460,24 +493,15 @@ export default function ReviewPage() {
                     style={{ border: "1.5px solid var(--border-strong)", background: "white", color: "var(--ink)" }}
                     autoFocus
                   />
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => { if (typedAnswer.trim()) { setAnswerChecked(true); setRevealed(true); } }}
-                      disabled={!typedAnswer.trim()}
-                      className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3.5 text-[15px] font-medium rounded-2xl transition-colors disabled:opacity-40"
-                      style={{ background: "var(--ink)", color: "var(--bg)" }}
-                    >
-                      Check answer
-                      <KbdKey>↵</KbdKey>
-                    </button>
-                    <button
-                      onClick={() => setRevealed(true)}
-                      className="inline-flex items-center justify-center gap-2 px-4 py-3.5 text-[14px] font-medium rounded-2xl transition-colors"
-                      style={{ background: "var(--bg-2)", color: "var(--muted)" }}
-                    >
-                      Skip
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => { if (typedAnswer.trim()) { setAnswerChecked(true); setRevealed(true); } }}
+                    disabled={!typedAnswer.trim()}
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-3.5 text-[15px] font-medium rounded-2xl transition-colors disabled:opacity-40"
+                    style={{ background: "var(--ink)", color: "var(--bg)" }}
+                  >
+                    Check answer
+                    <KbdKey>↵</KbdKey>
+                  </button>
                 </div>
               ) : (
                 <div className="flex gap-2">
@@ -487,7 +511,7 @@ export default function ReviewPage() {
                     style={{ background: "var(--ink)", color: "var(--bg)" }}
                   >
                     Show answer
-                    <span className="text-[22px] leading-none opacity-60">␣</span>
+                    <span className="text-[18px] leading-none opacity-60 flex items-center gap-1">␣ ↵</span>
                   </button>
                   <button
                     onClick={() => setTypeInActive(true)}
@@ -495,7 +519,6 @@ export default function ReviewPage() {
                     style={{ background: "var(--bg-2)", color: "var(--muted)" }}
                   >
                     Type answer
-                    <KbdKey>↵</KbdKey>
                   </button>
                   <button
                     onClick={() => setDrawingActive(true)}

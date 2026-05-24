@@ -69,6 +69,9 @@ export default function DeckPage() {
   const [resettingPlaylist, setResettingPlaylist] = useState(false);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [playlistCardIds, setPlaylistCardIds] = useState<Map<string, Set<string>>>(new Map());
+  const [playlistCardOrder, setPlaylistCardOrder] = useState<Map<string, string[]>>(new Map());
+  const [draggingPlCard, setDraggingPlCard] = useState<{ plId: string; cardId: string } | null>(null);
+  const [dragOverPlCard, setDragOverPlCard] = useState<{ plId: string; cardId: string; before: boolean } | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [chunkMap, setChunkMap] = useState<Map<string, string>>(new Map());
   const [expandedSource, setExpandedSource] = useState<string | null>(null);
@@ -125,7 +128,7 @@ export default function DeckPage() {
   // Card list UI
   const [cardSearch, setCardSearch] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "grid-small" | "grid-large">("list");
-  const [cardSort, setCardSort] = useState<"custom" | "front-asc" | "front-desc" | "date-new" | "date-old">("custom");
+  const [cardSort, setCardSort] = useState<"custom" | "front-asc" | "front-desc" | "date-new" | "date-old" | "level-asc" | "level-desc">("custom");
 
   // Selection mode
   const [selectionMode, setSelectionMode] = useState(false);
@@ -198,11 +201,13 @@ export default function DeckPage() {
       const { data: pl } = await supabase.from("playlists").select("*").eq("document_id", id).order("created_at");
       setPlaylists(pl ?? []);
       if (pl && pl.length > 0) {
-        const { data: pcRows } = await supabase.from("playlist_cards").select("playlist_id, card_id").in("playlist_id", pl.map(p => p.id));
-        const map = new Map<string, Set<string>>();
-        pl.forEach(p => map.set(p.id, new Set()));
-        (pcRows ?? []).forEach(r => map.get(r.playlist_id)?.add(r.card_id));
-        setPlaylistCardIds(map);
+        const { data: pcRows } = await supabase.from("playlist_cards").select("playlist_id, card_id, position").in("playlist_id", pl.map(p => p.id)).order("position", { ascending: true, nullsFirst: false });
+        const idsMap = new Map<string, Set<string>>();
+        const orderMap = new Map<string, string[]>();
+        pl.forEach(p => { idsMap.set(p.id, new Set()); orderMap.set(p.id, []); });
+        (pcRows ?? []).forEach(r => { idsMap.get(r.playlist_id)?.add(r.card_id); orderMap.get(r.playlist_id)?.push(r.card_id); });
+        setPlaylistCardIds(idsMap);
+        setPlaylistCardOrder(orderMap);
       }
 
       const { data: existing } = await supabase.from("cards").select("*").eq("document_id", id).order("position", { ascending: true, nullsFirst: false });
@@ -616,6 +621,19 @@ export default function DeckPage() {
     await Promise.all([...pendingPlaylistIds].map(plId => toggleCardInPlaylist(plId, cardId)));
     setPendingPlaylistIds(new Set());
     setOpenCardPlaylistId(null);
+  }
+
+  async function reorderPlaylistCards(plId: string, draggedId: string, targetId: string, before: boolean) {
+    const order = [...(playlistCardOrder.get(plId) ?? [])];
+    const withoutDragged = order.filter(id => id !== draggedId);
+    const targetIdx = withoutDragged.indexOf(targetId);
+    withoutDragged.splice(before ? targetIdx : targetIdx + 1, 0, draggedId);
+    setPlaylistCardOrder(prev => new Map(prev).set(plId, withoutDragged));
+    const supabase = createClient();
+    await supabase.from("playlist_cards").upsert(
+      withoutDragged.map((cardId, i) => ({ playlist_id: plId, card_id: cardId, position: i })),
+      { onConflict: "playlist_id,card_id" }
+    );
   }
 
 
@@ -1099,20 +1117,40 @@ export default function DeckPage() {
                     {/* Expanded card list */}
                     {expandedPlaylistId === pl.id && (
                       <div className="mt-3 flex flex-col" style={{ borderTop: "1px solid var(--border)" }}>
-                        {cards
-                          .filter(c => playlistCardIds.get(pl.id)?.has(c.id))
-                          .map((card, ci) => (
-                            <div key={card.id} className="py-4 flex items-start gap-4" style={{ borderBottom: "1px solid var(--border)" }}>
-                              <span className="flex-shrink-0 font-mono text-[11px] uppercase tracking-[0.14em] tabular-nums mt-1" style={{ color: "var(--soft)" }}>
-                                {String(ci + 1).padStart(2, "0")}
-                              </span>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-serif text-[16px] leading-snug text-[var(--ink)] whitespace-pre-wrap">{card.front}</p>
-                                <p className="mt-1 text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
-                                {card.hint && <p className="mt-1 text-[12px] whitespace-pre-wrap" style={{ color: "var(--muted)" }}><span className="font-mono text-[10px] uppercase tracking-[0.14em] mr-1" style={{ color: "var(--soft)" }}>Hint</span>{card.hint}</p>}
+                        {(playlistCardOrder.get(pl.id)?.length ? playlistCardOrder.get(pl.id)!.map(cid => cards.find(c => c.id === cid)).filter(Boolean) as typeof cards : cards.filter(c => playlistCardIds.get(pl.id)?.has(c.id)))
+                          .map((card, ci) => {
+                            const isDraggingThis = draggingPlCard?.cardId === card.id && draggingPlCard?.plId === pl.id;
+                            const isOver = dragOverPlCard?.cardId === card.id && dragOverPlCard?.plId === pl.id;
+                            return (
+                              <div key={card.id} className="relative">
+                                {isOver && dragOverPlCard?.before && <div className="absolute -top-px left-0 right-0 h-0.5 rounded-full z-10" style={{ background: "var(--accent)" }} />}
+                                <div
+                                  className="py-4 flex items-start gap-4 cursor-grab active:cursor-grabbing"
+                                  style={{ borderBottom: "1px solid var(--border)", opacity: isDraggingThis ? 0.4 : 1 }}
+                                  draggable
+                                  onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; setDraggingPlCard({ plId: pl.id, cardId: card.id }); }}
+                                  onDragEnd={() => { setDraggingPlCard(null); setDragOverPlCard(null); }}
+                                  onDragOver={(e) => { e.preventDefault(); const rect = e.currentTarget.getBoundingClientRect(); setDragOverPlCard({ plId: pl.id, cardId: card.id, before: e.clientY < rect.top + rect.height / 2 }); }}
+                                  onDrop={(e) => { e.preventDefault(); if (draggingPlCard && draggingPlCard.cardId !== card.id) reorderPlaylistCards(pl.id, draggingPlCard.cardId, card.id, dragOverPlCard?.before ?? true); setDraggingPlCard(null); setDragOverPlCard(null); }}
+                                >
+                                  <svg viewBox="0 0 10 16" className="w-2 h-3.5 flex-shrink-0 mt-1 opacity-30 hover:opacity-70" fill="currentColor" style={{ color: "var(--muted)" }}>
+                                    <circle cx="2" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/>
+                                    <circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/>
+                                    <circle cx="2" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/>
+                                  </svg>
+                                  <span className="flex-shrink-0 font-mono text-[11px] uppercase tracking-[0.14em] tabular-nums mt-1" style={{ color: "var(--soft)" }}>
+                                    {String(ci + 1).padStart(2, "0")}
+                                  </span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-serif text-[16px] leading-snug text-[var(--ink)] whitespace-pre-wrap">{card.front}</p>
+                                    <p className="mt-1 text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
+                                    {card.hint && <p className="mt-1 text-[12px] whitespace-pre-wrap" style={{ color: "var(--muted)" }}><span className="font-mono text-[10px] uppercase tracking-[0.14em] mr-1" style={{ color: "var(--soft)" }}>Hint</span>{card.hint}</p>}
+                                  </div>
+                                </div>
+                                {isOver && !dragOverPlCard?.before && <div className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full z-10" style={{ background: "var(--accent)" }} />}
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
 
                         {/* New card form inside playlist */}
                         {addingCardToPlaylistId === pl.id ? (
@@ -1258,6 +1296,8 @@ export default function DeckPage() {
                   <option value="front-desc">Sort: Z→A</option>
                   <option value="date-new">Sort: Newest</option>
                   <option value="date-old">Sort: Oldest</option>
+                  <option value="level-asc">Sort: Level Low→High</option>
+                  <option value="level-desc">Sort: Level High→Low</option>
                 </select>
               )}
               {!generating && cards.length > 0 && (
@@ -1475,6 +1515,8 @@ export default function DeckPage() {
               if (cardSort === "front-desc") return b.front.localeCompare(a.front);
               if (cardSort === "date-new") return b.created_at.localeCompare(a.created_at);
               if (cardSort === "date-old") return a.created_at.localeCompare(b.created_at);
+              if (cardSort === "level-asc") return (cardXpMap.get(a.id) ?? 0) - (cardXpMap.get(b.id) ?? 0);
+              if (cardSort === "level-desc") return (cardXpMap.get(b.id) ?? 0) - (cardXpMap.get(a.id) ?? 0);
               return (a.position ?? 99999) - (b.position ?? 99999);
             });
             if (q && filtered.length === 0) return (
