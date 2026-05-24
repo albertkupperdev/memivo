@@ -85,9 +85,13 @@ export default function ReviewPage() {
   useEffect(() => {
     async function load() {
       const supabase = createClient();
-      fetch("/api/settings").then(r => r.json()).then(s => { setSettings(s); setTypeInActive(s.type_in_answer ?? false); }).catch(() => {});
       const now = new Date().toISOString();
-      const { data: allCards } = await supabase.from("cards").select("*").eq("document_id", id);
+      const [settingsRes, { data: allCards }] = await Promise.all([
+        fetch("/api/settings").then(r => r.json()).catch(() => DEFAULT_SETTINGS),
+        supabase.from("cards").select("*").eq("document_id", id),
+      ]);
+      setSettings(settingsRes);
+      setTypeInActive(settingsRes.type_in_answer ?? false);
       if (!allCards || allCards.length === 0) { setNoCards(true); setLoaded(true); return; }
       const { data: reviews } = await supabase.from("card_reviews").select("card_id, due_date").in("card_id", allCards.map((c) => c.id));
       const reviewedMap = new Map(reviews?.map((r) => [r.card_id, r.due_date]));
