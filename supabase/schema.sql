@@ -28,9 +28,9 @@ create table card_reviews (
   card_id uuid references cards(id) on delete cascade not null,
   user_id uuid references auth.users(id) on delete cascade not null,
   ease_factor numeric default 2.5 not null,
-  interval_days integer default 1 not null,
+  interval_days numeric default 1 not null,
   repetitions integer default 0 not null,
-  due_date date default current_date not null,
+  due_date timestamptz default now() not null,
   last_reviewed_at timestamptz,
   unique(card_id, user_id)
 );

@@ -85,7 +85,6 @@ export default function ReviewPage() {
   useEffect(() => {
     async function load() {
       const supabase = createClient();
-      const now = new Date().toISOString();
       const [settingsRes, { data: allCards }] = await Promise.all([
         fetch("/api/settings").then(r => r.json()).catch(() => DEFAULT_SETTINGS),
         supabase.from("cards").select("*").eq("document_id", id),
@@ -102,7 +101,8 @@ export default function ReviewPage() {
         const ids = new Set((pcRows ?? []).map(r => r.card_id));
         eligibleCards = allCards.filter(c => ids.has(c.id));
       }
-      const allDue = eligibleCards.filter((c) => { const d = reviewedMap.get(c.id); return !d || d <= now; });
+      const nowMs = Date.now();
+      const allDue = eligibleCards.filter((c) => { const d = reviewedMap.get(c.id); return !d || new Date(d).getTime() <= nowMs; });
       const due = limit ? allDue.slice(0, limit) : allDue;
 
       const { data: chunks } = await supabase
