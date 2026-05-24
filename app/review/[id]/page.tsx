@@ -141,7 +141,7 @@ export default function ReviewPage() {
     const onKey = (e: KeyboardEvent) => {
       if (!loaded || idx >= cards.length) return;
       if (e.key === "Escape") { router.push(`/deck/${id}`); return; }
-      if (e.key === " ") { e.preventDefault(); if (!revealed) setRevealed(true); }
+      if (e.key === " " && !typeInActive) { e.preventDefault(); if (!revealed) setRevealed(true); }
       if (e.key === "Enter" && !revealed && !typeInActive) { e.preventDefault(); setTypeInActive(true); }
       if (revealed) {
         if (e.key === "1") rate("again");
@@ -152,7 +152,7 @@ export default function ReviewPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [revealed, idx, loaded, cards.length]);
+  }, [revealed, idx, loaded, cards.length, typeInActive]);
 
   // Timer
   useEffect(() => {
