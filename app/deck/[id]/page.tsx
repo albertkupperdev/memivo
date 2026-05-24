@@ -149,6 +149,7 @@ export default function DeckPage() {
   const [renamingPlaylistId, setRenamingPlaylistId] = useState<string | null>(null);
   const [renamePlaylistValue, setRenamePlaylistValue] = useState("");
   const [openCardPlaylistId, setOpenCardPlaylistId] = useState<string | null>(null);
+  const [pendingPlaylistIds, setPendingPlaylistIds] = useState<Set<string>>(new Set());
   const [confirmDeletePlaylistId, setConfirmDeletePlaylistId] = useState<string | null>(null);
   const [expandedPlaylistId, setExpandedPlaylistId] = useState<string | null>(null);
   const [colorPickerPlaylistId, setColorPickerPlaylistId] = useState<string | null>(null);
@@ -609,6 +610,12 @@ export default function DeckPage() {
         return m;
       });
     }
+  }
+
+  async function confirmAddToPlaylists(cardId: string) {
+    await Promise.all([...pendingPlaylistIds].map(plId => toggleCardInPlaylist(plId, cardId)));
+    setPendingPlaylistIds(new Set());
+    setOpenCardPlaylistId(null);
   }
 
 
@@ -1528,7 +1535,7 @@ export default function DeckPage() {
                           <button onClick={() => startEditCard(card)} className="p-1 rounded hover:bg-[var(--bg-2)]" style={{ color: "var(--muted)" }} title="Edit"><PencilIcon /></button>
                           <button onClick={() => { setEditingCardId(null); setConfirmDeleteCardId(card.id); }} className="p-1 rounded hover:bg-[var(--bg-2)]" style={{ color: "var(--muted)" }} title="Delete"><TrashIcon /></button>
                           {playlists.length > 0 && (
-                            <button onClick={() => setOpenCardPlaylistId(openCardPlaylistId === card.id ? null : card.id)} className="p-1 rounded hover:bg-[var(--bg-2)]" style={{ color: openCardPlaylistId === card.id ? "var(--accent-deep)" : "var(--muted)" }} title="Playlists">
+                            <button onClick={() => { setOpenCardPlaylistId(openCardPlaylistId === card.id ? null : card.id); setPendingPlaylistIds(new Set()); }} className="p-1 rounded hover:bg-[var(--bg-2)]" style={{ color: openCardPlaylistId === card.id ? "var(--accent-deep)" : "var(--muted)" }} title="Playlists">
                               <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
                             </button>
                           )}
@@ -1581,17 +1588,32 @@ export default function DeckPage() {
 
                       {/* Playlist picker */}
                       {openCardPlaylistId === card.id && playlists.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1.5">
+                        <div className="mt-2 flex flex-wrap gap-1.5 items-center">
                           {playlists.map(pl => {
                             const inPl = playlistCardIds.get(pl.id)?.has(card.id);
+                            const pending = pendingPlaylistIds.has(pl.id);
                             return (
-                              <button key={pl.id} onClick={() => toggleCardInPlaylist(pl.id, card.id)}
+                              <button key={pl.id}
+                                onClick={() => {
+                                  if (inPl) { toggleCardInPlaylist(pl.id, card.id); }
+                                  else { setPendingPlaylistIds(prev => { const s = new Set(prev); s.has(pl.id) ? s.delete(pl.id) : s.add(pl.id); return s; }); }
+                                }}
                                 className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-full transition-colors"
-                                style={{ background: inPl ? "var(--ink)" : "var(--bg-2)", color: inPl ? "var(--bg)" : "var(--muted)" }}>
-                                {inPl ? "✓ " : "+ "}{pl.name}
+                                style={{ background: inPl ? "var(--ink)" : pending ? "var(--accent)" : "var(--bg-2)", color: inPl ? "var(--bg)" : pending ? "white" : "var(--muted)" }}>
+                                {inPl ? "✓ " : pending ? "● " : "+ "}{pl.name}
                               </button>
                             );
                           })}
+                          <button onClick={() => confirmAddToPlaylists(card.id)} disabled={pendingPlaylistIds.size === 0}
+                            className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] px-2.5 py-0.5 rounded-full transition-colors disabled:opacity-40"
+                            style={{ background: "var(--ink)", color: "var(--bg)" }}>
+                            Add+
+                          </button>
+                          <button onClick={() => { setPendingPlaylistIds(new Set()); setOpenCardPlaylistId(null); }}
+                            className="font-mono text-[10px] uppercase tracking-[0.14em] px-1.5 py-0.5 transition-colors"
+                            style={{ color: "var(--muted)" }}>
+                            Cancel
+                          </button>
                         </div>
                       )}
                     </div>
@@ -1823,7 +1845,7 @@ export default function DeckPage() {
                             </button>
                             {playlists.length > 0 && (
                               <button
-                                onClick={() => setOpenCardPlaylistId(openCardPlaylistId === card.id ? null : card.id)}
+                                onClick={() => { setOpenCardPlaylistId(openCardPlaylistId === card.id ? null : card.id); setPendingPlaylistIds(new Set()); }}
                                 className="p-1.5 rounded-lg transition-colors hover:bg-[var(--bg-2)]"
                                 style={{ color: openCardPlaylistId === card.id ? "var(--accent-deep)" : "var(--muted)" }}
                                 title="Add to playlist"
@@ -1836,17 +1858,32 @@ export default function DeckPage() {
                           </div>
                         </div>
                         {openCardPlaylistId === card.id && playlists.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1.5">
+                          <div className="mt-2 flex flex-wrap gap-1.5 items-center">
                             {playlists.map(pl => {
                               const inPl = playlistCardIds.get(pl.id)?.has(card.id);
+                              const pending = pendingPlaylistIds.has(pl.id);
                               return (
-                                <button key={pl.id} onClick={() => toggleCardInPlaylist(pl.id, card.id)}
+                                <button key={pl.id}
+                                  onClick={() => {
+                                    if (inPl) { toggleCardInPlaylist(pl.id, card.id); }
+                                    else { setPendingPlaylistIds(prev => { const s = new Set(prev); s.has(pl.id) ? s.delete(pl.id) : s.add(pl.id); return s; }); }
+                                  }}
                                   className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] px-2 py-1 rounded-full transition-colors"
-                                  style={{ background: inPl ? "var(--ink)" : "var(--bg-2)", color: inPl ? "var(--bg)" : "var(--muted)" }}>
-                                  {inPl ? "✓ " : "+ "}{pl.name}
+                                  style={{ background: inPl ? "var(--ink)" : pending ? "var(--accent)" : "var(--bg-2)", color: inPl ? "var(--bg)" : pending ? "white" : "var(--muted)" }}>
+                                  {inPl ? "✓ " : pending ? "● " : "+ "}{pl.name}
                                 </button>
                               );
                             })}
+                            <button onClick={() => confirmAddToPlaylists(card.id)} disabled={pendingPlaylistIds.size === 0}
+                              className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] px-2.5 py-1 rounded-full transition-colors disabled:opacity-40"
+                              style={{ background: "var(--ink)", color: "var(--bg)" }}>
+                              Add+
+                            </button>
+                            <button onClick={() => { setPendingPlaylistIds(new Set()); setOpenCardPlaylistId(null); }}
+                              className="font-mono text-[10px] uppercase tracking-[0.14em] px-1.5 py-1 transition-colors"
+                              style={{ color: "var(--muted)" }}>
+                              Cancel
+                            </button>
                           </div>
                         )}
                         </div>
