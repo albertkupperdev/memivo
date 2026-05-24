@@ -943,10 +943,10 @@ export default function DeckPage() {
                       key={pl.id}
                       className="group bg-white rounded-2xl px-6 py-4 flex flex-col gap-3"
                       style={{
-                        border: `1px solid ${confirmDeletePlaylistId === pl.id ? "var(--complement-border)" : isDropTarget ? "var(--accent)" : "var(--border)"}`,
-                        background: confirmDeletePlaylistId === pl.id ? "var(--complement-bg)" : isDropTarget ? "var(--accent-bg)" : "white",
+                        border: `1px solid ${confirmDeletePlaylistId === pl.id ? "var(--complement-border)" : isDropTarget ? "var(--accent)" : pl.name === "Hard cards" ? "#fca5a5" : "var(--border)"}`,
+                        background: confirmDeletePlaylistId === pl.id ? "var(--complement-bg)" : isDropTarget ? "var(--accent-bg)" : pl.name === "Hard cards" ? "#fee2e2" : "white",
                         opacity: draggingPlaylistId === pl.id ? 0.4 : 1,
-                        borderLeft: pl.color ? `4px solid ${pl.color}` : undefined,
+                        borderLeft: pl.name === "Hard cards" ? "4px solid #ef4444" : pl.color ? `4px solid ${pl.color}` : undefined,
                       }}
                       draggable={playlistSort === "custom"}
                       onDragStart={e => { if (playlistSort !== "custom") return; e.dataTransfer.effectAllowed = "move"; setDraggingPlaylistId(pl.id); }}
@@ -980,10 +980,10 @@ export default function DeckPage() {
                       <button
                         onClick={() => setColorPickerPlaylistId(colorPickerPlaylistId === pl.id ? null : pl.id)}
                         className="w-5 h-5 rounded-full flex-shrink-0 border-2 transition-all"
-                        style={{ background: pl.color ?? "var(--bg-2)", borderColor: colorPickerPlaylistId === pl.id ? "var(--ink)" : "var(--border-strong)" }}
+                        style={{ background: pl.name === "Hard cards" ? "#ef4444" : pl.color ?? "var(--bg-2)", borderColor: colorPickerPlaylistId === pl.id ? "var(--ink)" : "var(--border-strong)" }}
                         title="Change color"
                       />
-                      <svg viewBox="0 0 24 24" className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: pl.color ?? "var(--muted)" }}>
+                      <svg viewBox="0 0 24 24" className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: pl.name === "Hard cards" ? "#ef4444" : pl.color ?? "var(--muted)" }}>
                         <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
                       </svg>
                       <div className="flex-1 min-w-0">
