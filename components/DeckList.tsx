@@ -49,7 +49,6 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
   const [decks, setDecks] = useState(initialDecks);
   const [folders, setFolders] = useState(initialFolders);
 
-  // Sync when server provides fresh data (after router.refresh())
   useEffect(() => { startTransition(() => setDecks(initialDecks)); }, [initialDecks]);
   useEffect(() => { startTransition(() => setFolders(initialFolders)); }, [initialFolders]);
   const [showUploader, setShowUploader] = useState(initialDecks.length === 0);
@@ -73,7 +72,6 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
   const [dragOverTarget, setDragOverTarget] = useState<string | null>(null);
   const [dragOverDeckId, setDragOverDeckId] = useState<string | null>(null);
   const [dragInsertBefore, setDragInsertBefore] = useState(true);
-  // Refs for drop handlers to avoid stale closures in concurrent mode
   const draggingRef = useRef<string | null>(null);
   const dragOverDeckRef = useRef<string | null>(null);
   const dragInsertBeforeRef = useRef(true);

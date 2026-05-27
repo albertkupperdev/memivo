@@ -62,11 +62,9 @@ export async function POST(
     return NextResponse.json({ error: "Failed to save review" }, { status: 500 });
   }
 
-  // Auto-add to "Hard cards" playlist when rated "Again"
   if (rating === "again") {
     const { data: card } = await supabase.from("cards").select("document_id").eq("id", cardId).single();
     if (card) {
-      // Find or create the single "Hard cards" playlist for this document
       let { data: playlist } = await supabase
         .from("playlists")
         .select("id")

@@ -544,7 +544,6 @@ export default function DeckPage() {
     setResettingPlaylist(false);
     setConfirmPlaylistReviewId(null);
     router.push(`/review/${id}?playlist=${plId}`);
-    // Note: review_count was already incremented when the Review button was clicked
   }
 
   const PLAYLIST_COLORS =["#ef4444","#f97316","#eab308","#22c55e","#3b82f6","#8b5cf6","#ec4899","#6b7280"];
@@ -1056,7 +1055,6 @@ export default function DeckPage() {
                           const today = new Date().toISOString().split("T")[0];
                           const cardIds = [...(playlistCardIds.get(pl.id) ?? [])];
                           const anyDue = cardIds.some(cid => { const d = cardDueDateMap.get(cid); return !d || d <= today; });
-                          // Increment review count
                           const newCount = (pl.review_count ?? 0) + 1;
                           setPlaylists(prev => prev.map(p => p.id === pl.id ? { ...p, review_count: newCount } : p));
                           fetch(`/api/playlists/${pl.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: pl.name, review_count: newCount }) });

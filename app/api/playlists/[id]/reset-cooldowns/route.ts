@@ -11,7 +11,6 @@ export async function POST(
 
   const { id } = await params;
 
-  // Verify ownership through playlist → document
   const { data: playlist } = await supabase
     .from("playlists")
     .select("id, documents(user_id)")

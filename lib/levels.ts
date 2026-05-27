@@ -5,7 +5,6 @@ export const CARD_XP_PER_RATING: Record<string, number> = {
   easy: 10,
 };
 
-// XP required to reach each level (index = level - 1)
 export const CARD_LEVEL_THRESHOLDS = [0, 10, 25, 50, 100, 200, 350, 550, 800, 1000];
 export const MAX_CARD_LEVEL = 10;
 
