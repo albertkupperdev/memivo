@@ -5,9 +5,8 @@ import { buildCardGenerationPrompt, buildVocabularyPrompt } from "@/lib/prompts"
 export const maxDuration = 60;
 
 const MAX_CHUNKS_STANDARD = 10;
-const MAX_CHUNKS_VOCABULARY = 60;
-const CONCURRENCY_STANDARD = 5;
-const CONCURRENCY_VOCABULARY = 3;
+const VOCAB_MERGE_SIZE = 6;
+const CONCURRENCY = 5;
 const REQUEST_TIMEOUT_MS = 8_000;
 
 function isBoilerplate(text: string): boolean {
@@ -32,6 +31,15 @@ function sampleChunks<T>(arr: T[], max: number): T[] {
   return Array.from({ length: max }, (_, i) => arr[Math.floor(i * step)]);
 }
 
+function mergeChunksForVocab(chunks: { id: string; content: string }[]): { id: string; content: string }[] {
+  const merged: { id: string; content: string }[] = [];
+  for (let i = 0; i < chunks.length; i += VOCAB_MERGE_SIZE) {
+    const batch = chunks.slice(i, i + VOCAB_MERGE_SIZE);
+    merged.push({ id: batch[0].id, content: batch.map(c => c.content).join('\n\n') });
+  }
+  return merged;
+}
+
 async function generateCardsForChunk(
   chunk: { id: string; content: string },
   documentId: string,
@@ -48,7 +56,7 @@ async function generateCardsForChunk(
         model: AI_MODEL,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
-        max_tokens: contentType === "vocabulary" ? 2048 : 512,
+        max_tokens: contentType === "vocabulary" ? 4096 : 512,
       },
       { signal: controller.signal }
     );
@@ -119,8 +127,9 @@ export async function POST(request: Request) {
 
   const isVocab = contentType === "vocabulary";
   const contentChunks = allChunks.filter((c) => !isBoilerplate(c.content));
-  const chunks = sampleChunks(contentChunks, isVocab ? MAX_CHUNKS_VOCABULARY : MAX_CHUNKS_STANDARD);
-  const concurrency = isVocab ? CONCURRENCY_VOCABULARY : CONCURRENCY_STANDARD;
+  const chunks = isVocab
+    ? mergeChunksForVocab(contentChunks)
+    : sampleChunks(contentChunks, MAX_CHUNKS_STANDARD);
   const total = chunks.length;
 
   const encoder = new TextEncoder();
@@ -134,7 +143,7 @@ export async function POST(request: Request) {
 
       const cardResults = await withConcurrency(
         chunks,
-        concurrency,
+        CONCURRENCY,
         (c) => generateCardsForChunk(c, documentId, contentType),
         (done) => send({ progress: done, total })
       );
