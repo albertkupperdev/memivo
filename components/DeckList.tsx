@@ -44,6 +44,22 @@ function applySortBy(list: DeckWithStats[], sortBy: SortBy): DeckWithStats[] {
   }
 }
 
+function applyFolderSortBy(list: Folder[], sortBy: SortBy, decks: DeckWithStats[]): Folder[] {
+  const s = [...list];
+  switch (sortBy) {
+    case "custom":    return s;
+    case "name-asc":  return s.sort((a, b) => a.name.localeCompare(b.name));
+    case "name-desc": return s.sort((a, b) => b.name.localeCompare(a.name));
+    case "date-new":  return s.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    case "date-old":  return s.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    case "due":       return s.sort((a, b) => {
+      const dueA = decks.filter(d => d.folder_id === a.id).reduce((sum, d) => sum + d.dueCount, 0);
+      const dueB = decks.filter(d => d.folder_id === b.id).reduce((sum, d) => sum + d.dueCount, 0);
+      return dueB - dueA;
+    });
+  }
+}
+
 export default function DeckList({ decks: initialDecks, folders: initialFolders, streak, totalXp }: Props) {
   const router = useRouter();
   const [decks, setDecks] = useState(initialDecks);
@@ -190,6 +206,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
     ? folders.filter((f) => f.name.toLowerCase().includes(q) || filteredDecks.some((d) => d.folder_id === f.id))
     : folders;
   const unfiledDecks = applySortBy(filteredDecks.filter((d) => !d.folder_id), sortBy);
+  const sortedFolders = applyFolderSortBy(filteredFolders, sortBy, filteredDecks);
   const folderMap = new Map(folders.map((f) => [f.id, f]));
 
   return (
@@ -353,7 +370,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
           </div>
         ) : (
           <div className="flex flex-col gap-8">
-            {filteredFolders.map((folder) => {
+            {sortedFolders.map((folder) => {
               const folderDecks = applySortBy(filteredDecks.filter((d) => d.folder_id === folder.id), sortBy);
               const isOver = dragOverTarget === folder.id;
               const isClosed = closedFolderIds.has(folder.id);
