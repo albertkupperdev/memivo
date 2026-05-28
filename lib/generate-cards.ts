@@ -1,8 +1,10 @@
 import { groq, AI_MODEL } from "@/lib/ai";
 import { buildCardGenerationPrompt, buildVocabularyPrompt } from "@/lib/prompts";
 
-const MAX_CHUNKS = 10;
-const CONCURRENCY = 5;
+const MAX_CHUNKS_STANDARD = 10;
+const MAX_CHUNKS_VOCABULARY = 60;
+const CONCURRENCY_STANDARD = 5;
+const CONCURRENCY_VOCABULARY = 3;
 const REQUEST_TIMEOUT_MS = 8_000;
 
 function isBoilerplate(text: string): boolean {
@@ -80,13 +82,15 @@ export async function generateCardsFromChunks(
   send: (obj: object) => void,
   contentType = "standard"
 ) {
+  const isVocab = contentType === "vocabulary";
   const contentChunks = allChunks.filter((c) => !isBoilerplate(c.content));
-  const chunks = sampleChunks(contentChunks, MAX_CHUNKS);
+  const chunks = sampleChunks(contentChunks, isVocab ? MAX_CHUNKS_VOCABULARY : MAX_CHUNKS_STANDARD);
+  const concurrency = isVocab ? CONCURRENCY_VOCABULARY : CONCURRENCY_STANDARD;
   const total = chunks.length;
   send({ progress: 0, total });
 
   const results = await withConcurrency(
-    chunks, CONCURRENCY,
+    chunks, concurrency,
     (c) => generateForChunk(c, documentId, contentType),
     (done) => send({ progress: done, total })
   );
