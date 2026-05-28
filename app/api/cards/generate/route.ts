@@ -5,7 +5,7 @@ import { buildCardGenerationPrompt, buildVocabularyPrompt } from "@/lib/prompts"
 export const maxDuration = 60;
 
 const MAX_CHUNKS_STANDARD = 10;
-const VOCAB_MERGE_SIZE = 6;
+const VOCAB_MERGE_SIZE = 2;
 const CONCURRENCY = 5;
 const REQUEST_TIMEOUT_MS = 15_000;
 
@@ -43,7 +43,8 @@ function mergeChunksForVocab(chunks: { id: string; content: string }[]): { id: s
 async function generateCardsForChunk(
   chunk: { id: string; content: string },
   documentId: string,
-  contentType: string
+  contentType: string,
+  onError: (msg: string) => void
 ): Promise<{ document_id: string; chunk_id: string; front: string; back: string; hint: string | null }[]> {
   const prompt = contentType === "vocabulary"
     ? buildVocabularyPrompt(chunk.content)
@@ -56,7 +57,7 @@ async function generateCardsForChunk(
         model: AI_MODEL,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
-        max_tokens: contentType === "vocabulary" ? 4096 : 512,
+        max_tokens: contentType === "vocabulary" ? 2048 : 512,
       },
       { signal: controller.signal }
     );
@@ -68,16 +69,17 @@ async function generateCardsForChunk(
       parsed = JSON.parse(raw);
     } catch {
       const match = raw.match(/\[[\s\S]*\]/);
-      if (!match) return [];
-      parsed = JSON.parse(match[0]);
+      if (!match) { onError(`no JSON in response: ${raw.slice(0, 100)}`); return []; }
+      try { parsed = JSON.parse(match[0]); } catch { onError(`truncated JSON: ${raw.slice(0, 100)}`); return []; }
     }
 
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(parsed)) { onError(`not array: ${raw.slice(0, 80)}`); return []; }
     return parsed
       .filter((c) => typeof c.front === "string" && typeof c.back === "string")
       .map((c) => ({ document_id: documentId, chunk_id: chunk.id, front: c.front.trim(), back: c.back.trim(), hint: c.hint?.trim() ?? null }));
-  } catch {
+  } catch (err) {
     clearTimeout(timer);
+    onError(err instanceof Error ? err.message : String(err));
     return [];
   }
 }
@@ -141,17 +143,18 @@ export async function POST(request: Request) {
 
       send({ progress: 0, total });
 
+      let firstError = "";
       const cardResults = await withConcurrency(
         chunks,
         CONCURRENCY,
-        (c) => generateCardsForChunk(c, documentId, contentType),
+        (c) => generateCardsForChunk(c, documentId, contentType, (msg) => { if (!firstError) firstError = msg; }),
         (done) => send({ progress: done, total })
       );
 
       const allCards = cardResults.flat();
 
       if (allCards.length === 0) {
-        send({ error: "Failed to generate any cards" });
+        send({ error: firstError ? `Generation failed: ${firstError}` : "Failed to generate any cards" });
         controller.close();
         return;
       }
