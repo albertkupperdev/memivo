@@ -5,9 +5,10 @@ import { buildCardGenerationPrompt, buildVocabularyPrompt } from "@/lib/prompts"
 export const maxDuration = 60;
 
 const MAX_CHUNKS_STANDARD = 10;
-const VOCAB_MERGE_SIZE = 1;
+const VOCAB_MERGE_SIZE = 2;
 const CONCURRENCY = 5;
-const REQUEST_TIMEOUT_MS = 10_000;
+const REQUEST_TIMEOUT_MS = 8_000;
+const DEADLINE_MS = 44_000;
 
 function isBoilerplate(text: string): boolean {
   const lower = text.toLowerCase();
@@ -88,14 +89,16 @@ async function withConcurrency<T, R>(
   items: T[],
   concurrency: number,
   fn: (item: T) => Promise<R>,
-  onEach: (done: number) => void
+  onEach: (done: number) => void,
+  deadline: number
 ): Promise<R[]> {
-  const results: R[] = new Array(items.length);
+  const results: (R | undefined)[] = new Array(items.length);
   let next = 0;
   let done = 0;
 
   async function worker() {
     while (next < items.length) {
+      if (Date.now() > deadline) break;
       const i = next++;
       results[i] = await fn(items[i]);
       done++;
@@ -104,7 +107,7 @@ async function withConcurrency<T, R>(
   }
 
   await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
-  return results;
+  return results.filter((r): r is R => r !== undefined);
 }
 
 export async function POST(request: Request) {
@@ -143,12 +146,14 @@ export async function POST(request: Request) {
 
       send({ progress: 0, total });
 
+      const deadline = Date.now() + DEADLINE_MS;
       let firstError = "";
       const cardResults = await withConcurrency(
         chunks,
         CONCURRENCY,
         (c) => generateCardsForChunk(c, documentId, contentType, (msg) => { if (!firstError) firstError = msg; }),
-        (done) => send({ progress: done, total })
+        (done) => send({ progress: done, total }),
+        deadline
       );
 
       const allCards = cardResults.flat();
