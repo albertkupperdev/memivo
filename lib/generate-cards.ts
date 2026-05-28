@@ -2,9 +2,9 @@ import { groq, AI_MODEL } from "@/lib/ai";
 import { buildCardGenerationPrompt, buildVocabularyPrompt } from "@/lib/prompts";
 
 const MAX_CHUNKS_STANDARD = 10;
-const VOCAB_MERGE_SIZE = 6;
+const VOCAB_MERGE_SIZE = 1;
 const CONCURRENCY = 5;
-const REQUEST_TIMEOUT_MS = 15_000;
+const REQUEST_TIMEOUT_MS = 10_000;
 
 function isBoilerplate(text: string): boolean {
   const lower = text.toLowerCase();

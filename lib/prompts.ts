@@ -1,17 +1,17 @@
 export function buildVocabularyPrompt(chunk: string): string {
-  return `You are a vocabulary flashcard generator. Extract every word or phrase pair from the vocabulary list below and create one flashcard per entry.
+  return `You are a vocabulary flashcard generator. Your job is to extract EVERY single word or phrase entry from the text below — one card per entry, no exceptions.
 
 Rules:
 - Front: the source language word or phrase (usually English)
 - Back: the translation, plus phonetic transcription in brackets if present (e.g. "Привет [prʲɪˈvʲet]")
-- Hint: grammatical category or usage note if clearly stated (e.g. "greeting", "informal", "verb") — otherwise omit
-- Include every unique entry you can find; do not skip entries
-- Do not merge multiple words into one card
+- Hint: part of speech or usage note if clearly stated — otherwise omit
+- You MUST include every entry. Do not skip any. Do not summarise or group entries.
+- If you see 10 entries in the text, output exactly 10 cards.
 
 Return ONLY a JSON array — no text before or after:
 [{"front": "...", "back": "...", "hint": "..."}]
 
-Return [] only if there are no vocabulary entries in the text.
+Return [] only if the text contains zero vocabulary entries (e.g. a blank page or page number only).
 
 Text:
 ${chunk}`;
