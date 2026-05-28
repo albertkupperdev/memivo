@@ -4,7 +4,7 @@ import { buildCardGenerationPrompt, buildVocabularyPrompt } from "@/lib/prompts"
 const MAX_CHUNKS_STANDARD = 10;
 const VOCAB_MERGE_SIZE = 6;
 const CONCURRENCY = 5;
-const REQUEST_TIMEOUT_MS = 8_000;
+const REQUEST_TIMEOUT_MS = 15_000;
 
 function isBoilerplate(text: string): boolean {
   const lower = text.toLowerCase();
@@ -91,7 +91,7 @@ export async function generateCardsFromChunks(
   contentType = "standard"
 ) {
   const isVocab = contentType === "vocabulary";
-  const contentChunks = allChunks.filter((c) => !isBoilerplate(c.content));
+  const contentChunks = isVocab ? allChunks : allChunks.filter((c) => !isBoilerplate(c.content));
   const chunks = isVocab
     ? mergeChunksForVocab(contentChunks)
     : sampleChunks(contentChunks, MAX_CHUNKS_STANDARD);
