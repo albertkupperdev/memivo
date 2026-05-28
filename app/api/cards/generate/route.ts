@@ -4,10 +4,9 @@ import { buildCardGenerationPrompt } from "@/lib/prompts";
 
 export const maxDuration = 60;
 
-const MAX_CHUNKS = 15;
+const MAX_CHUNKS = 10;
 const CONCURRENCY = 5;
-const REQUEST_TIMEOUT_MS = 10_000;
-const MAX_RETRIES = 1;
+const REQUEST_TIMEOUT_MS = 8_000;
 
 function isBoilerplate(text: string): boolean {
   const lower = text.toLowerCase();
@@ -35,42 +34,38 @@ async function generateCardsForChunk(
   chunk: { id: string; content: string },
   documentId: string
 ): Promise<{ document_id: string; chunk_id: string; front: string; back: string; hint: string | null }[]> {
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const completion = await groq.chat.completions.create(
+      {
+        model: AI_MODEL,
+        messages: [{ role: "user", content: buildCardGenerationPrompt(chunk.content) }],
+        temperature: 0.3,
+        max_tokens: 512,
+      },
+      { signal: controller.signal }
+    );
+    clearTimeout(timer);
+
+    const raw = completion.choices[0]?.message?.content ?? "";
+    let parsed: { front: string; back: string; hint?: string }[];
     try {
-      const completion = await groq.chat.completions.create(
-        {
-          model: AI_MODEL,
-          messages: [{ role: "user", content: buildCardGenerationPrompt(chunk.content) }],
-          temperature: 0.3,
-          max_tokens: 512,
-        },
-        { timeout: REQUEST_TIMEOUT_MS }
-      );
-
-      const raw = completion.choices[0]?.message?.content ?? "";
-      let parsed: { front: string; back: string; hint?: string }[];
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        const match = raw.match(/\[[\s\S]*\]/);
-        if (!match) return [];
-        parsed = JSON.parse(match[0]);
-      }
-
-      if (!Array.isArray(parsed)) return [];
-      return parsed
-        .filter((c) => typeof c.front === "string" && typeof c.back === "string")
-        .map((c) => ({ document_id: documentId, chunk_id: chunk.id, front: c.front.trim(), back: c.back.trim(), hint: c.hint?.trim() ?? null }));
-    } catch (err) {
-      const status = (err as { status?: number })?.status;
-      if (status === 429 && attempt < MAX_RETRIES) {
-        await new Promise(res => setTimeout(res, 500));
-        continue;
-      }
-      return [];
+      parsed = JSON.parse(raw);
+    } catch {
+      const match = raw.match(/\[[\s\S]*\]/);
+      if (!match) return [];
+      parsed = JSON.parse(match[0]);
     }
+
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((c) => typeof c.front === "string" && typeof c.back === "string")
+      .map((c) => ({ document_id: documentId, chunk_id: chunk.id, front: c.front.trim(), back: c.back.trim(), hint: c.hint?.trim() ?? null }));
+  } catch {
+    clearTimeout(timer);
+    return [];
   }
-  return [];
 }
 
 async function withConcurrency<T, R>(
