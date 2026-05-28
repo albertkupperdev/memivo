@@ -267,6 +267,8 @@ export default function DeckPage() {
           } catch { /* ignore malformed line */ }
         }
       }
+      setError("Generation timed out. Please try refreshing the page.");
+      setGenerating(false);
     }
     load();
   }, [id]);
