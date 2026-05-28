@@ -4,10 +4,10 @@ import { buildCardGenerationPrompt } from "@/lib/prompts";
 
 export const maxDuration = 60;
 
-const MAX_CHUNKS = 20;
-const CONCURRENCY = 20;
-const REQUEST_TIMEOUT_MS = 20_000;
-const MAX_RETRIES = 3;
+const MAX_CHUNKS = 15;
+const CONCURRENCY = 5;
+const REQUEST_TIMEOUT_MS = 10_000;
+const MAX_RETRIES = 1;
 
 function isBoilerplate(text: string): boolean {
   const lower = text.toLowerCase();
@@ -64,7 +64,7 @@ async function generateCardsForChunk(
     } catch (err) {
       const status = (err as { status?: number })?.status;
       if (status === 429 && attempt < MAX_RETRIES) {
-        await new Promise(res => setTimeout(res, 1000 * (attempt + 1)));
+        await new Promise(res => setTimeout(res, 500));
         continue;
       }
       return [];
