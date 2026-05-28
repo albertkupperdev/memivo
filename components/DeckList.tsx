@@ -179,7 +179,6 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
         body: JSON.stringify({ position: d.position }),
       })
     ));
-    router.refresh();
   }
 
   function handleDeckDrop(sectionDecks: DeckWithStats[], targetDeckId: string) {

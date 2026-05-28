@@ -20,6 +20,9 @@ export async function PATCH(
   if ("folder_id" in body) {
     updates.folder_id = body.folder_id ?? null;
   }
+  if ("position" in body) {
+    updates.position = typeof body.position === "number" ? body.position : null;
+  }
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
