@@ -8,6 +8,7 @@ type Tab = "pdf" | "url" | "manual";
 export default function DocumentUploader({ onCancel }: { onCancel?: () => void }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("pdf");
+  const [contentType, setContentType] = useState<"standard" | "vocabulary">("standard");
   const [file, setFile] = useState<File | null>(null);
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
@@ -30,6 +31,7 @@ export default function DocumentUploader({ onCancel }: { onCancel?: () => void }
       if (tab === "pdf") {
         const formData = new FormData();
         formData.append("file", file!);
+        formData.append("contentType", contentType);
         const res = await fetch("/api/documents/upload", { method: "POST", body: formData });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
@@ -38,7 +40,7 @@ export default function DocumentUploader({ onCancel }: { onCancel?: () => void }
         const res = await fetch("/api/documents/url", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({ url, contentType }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
@@ -88,6 +90,28 @@ export default function DocumentUploader({ onCancel }: { onCancel?: () => void }
           </button>
         ))}
       </div>
+
+      {tab !== "manual" && (
+        <div className="flex items-center gap-2 mb-5">
+          <span className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>Card style</span>
+          <div className="inline-flex p-0.5 rounded-full" style={{ background: "var(--bg-2)" }}>
+            {(["standard", "vocabulary"] as const).map((ct) => (
+              <button
+                key={ct}
+                onClick={() => setContentType(ct)}
+                className="px-3 py-1 font-mono text-[11px] uppercase tracking-[0.14em] rounded-full transition-colors"
+                style={
+                  contentType === ct
+                    ? { background: "white", color: "var(--ink)", boxShadow: "0 1px 2px rgba(22,23,15,0.08)" }
+                    : { color: "var(--muted)" }
+                }
+              >
+                {ct === "standard" ? "Study material" : "Vocabulary"}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {tab === "pdf" ? (
         <label className="block cursor-pointer">

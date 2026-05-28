@@ -1,3 +1,22 @@
+export function buildVocabularyPrompt(chunk: string): string {
+  return `You are a vocabulary flashcard generator. Extract every word or phrase pair from the vocabulary list below and create one flashcard per entry.
+
+Rules:
+- Front: the source language word or phrase (usually English)
+- Back: the translation, plus phonetic transcription in brackets if present (e.g. "Привет [prʲɪˈvʲet]")
+- Hint: grammatical category or usage note if clearly stated (e.g. "greeting", "informal", "verb") — otherwise omit
+- Include every unique entry you can find; do not skip entries
+- Do not merge multiple words into one card
+
+Return ONLY a JSON array — no text before or after:
+[{"front": "...", "back": "...", "hint": "..."}]
+
+Return [] only if there are no vocabulary entries in the text.
+
+Text:
+${chunk}`;
+}
+
 export function buildCardGenerationPrompt(chunk: string): string {
   return `You are a flashcard generator. Create 3-5 spaced-repetition flashcards from the text below. Write the cards in the same language as the text.
 

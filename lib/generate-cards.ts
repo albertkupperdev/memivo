@@ -1,5 +1,5 @@
 import { groq, AI_MODEL } from "@/lib/ai";
-import { buildCardGenerationPrompt } from "@/lib/prompts";
+import { buildCardGenerationPrompt, buildVocabularyPrompt } from "@/lib/prompts";
 
 const MAX_CHUNKS = 10;
 const CONCURRENCY = 5;
@@ -29,17 +29,21 @@ function sampleChunks<T>(arr: T[], max: number): T[] {
 
 async function generateForChunk(
   chunk: { id: string; content: string },
-  documentId: string
+  documentId: string,
+  contentType: string
 ): Promise<{ document_id: string; chunk_id: string; front: string; back: string; hint: string | null }[]> {
+  const prompt = contentType === "vocabulary"
+    ? buildVocabularyPrompt(chunk.content)
+    : buildCardGenerationPrompt(chunk.content);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const completion = await groq.chat.completions.create(
       {
         model: AI_MODEL,
-        messages: [{ role: "user", content: buildCardGenerationPrompt(chunk.content) }],
+        messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
-        max_tokens: 512,
+        max_tokens: contentType === "vocabulary" ? 2048 : 512,
       },
       { signal: controller.signal }
     );
@@ -73,7 +77,8 @@ async function withConcurrency<T, R>(
 export async function generateCardsFromChunks(
   allChunks: { id: string; content: string }[],
   documentId: string,
-  send: (obj: object) => void
+  send: (obj: object) => void,
+  contentType = "standard"
 ) {
   const contentChunks = allChunks.filter((c) => !isBoilerplate(c.content));
   const chunks = sampleChunks(contentChunks, MAX_CHUNKS);
@@ -82,7 +87,7 @@ export async function generateCardsFromChunks(
 
   const results = await withConcurrency(
     chunks, CONCURRENCY,
-    (c) => generateForChunk(c, documentId),
+    (c) => generateForChunk(c, documentId, contentType),
     (done) => send({ progress: done, total })
   );
 

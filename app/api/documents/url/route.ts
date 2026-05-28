@@ -14,7 +14,8 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { url } = body;
+  const { url, contentType } = body;
+  const resolvedContentType = contentType === "vocabulary" ? "vocabulary" : "standard";
 
   if (!url || typeof url !== "string") {
     return NextResponse.json({ error: "A URL is required" }, { status: 400 });
@@ -51,6 +52,7 @@ export async function POST(request: Request) {
       title,
       source_type: "url",
       source_url: url,
+      content_type: resolvedContentType,
     })
     .select()
     .single();

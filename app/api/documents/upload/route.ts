@@ -15,6 +15,7 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
+  const contentType = formData.get("contentType") === "vocabulary" ? "vocabulary" : "standard";
 
   if (!file || file.type !== "application/pdf") {
     return NextResponse.json({ error: "A PDF file is required" }, { status: 400 });
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       title: file.name.replace(/\.pdf$/i, ""),
       source_type: "pdf",
+      content_type: contentType,
     })
     .select()
     .single();

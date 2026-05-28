@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { groq, AI_MODEL } from "@/lib/ai";
-import { buildCardGenerationPrompt } from "@/lib/prompts";
+import { buildCardGenerationPrompt, buildVocabularyPrompt } from "@/lib/prompts";
 
 export const maxDuration = 60;
 
@@ -32,17 +32,21 @@ function sampleChunks<T>(arr: T[], max: number): T[] {
 
 async function generateCardsForChunk(
   chunk: { id: string; content: string },
-  documentId: string
+  documentId: string,
+  contentType: string
 ): Promise<{ document_id: string; chunk_id: string; front: string; back: string; hint: string | null }[]> {
+  const prompt = contentType === "vocabulary"
+    ? buildVocabularyPrompt(chunk.content)
+    : buildCardGenerationPrompt(chunk.content);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const completion = await groq.chat.completions.create(
       {
         model: AI_MODEL,
-        messages: [{ role: "user", content: buildCardGenerationPrompt(chunk.content) }],
+        messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
-        max_tokens: 512,
+        max_tokens: contentType === "vocabulary" ? 2048 : 512,
       },
       { signal: controller.signal }
     );
@@ -99,10 +103,11 @@ export async function POST(request: Request) {
   const { documentId } = await request.json();
   if (!documentId) return new Response(JSON.stringify({ error: "documentId is required" }), { status: 400 });
 
-  const { data: document } = await supabase.from("documents").select("id, user_id").eq("id", documentId).single();
+  const { data: document } = await supabase.from("documents").select("id, user_id, content_type").eq("id", documentId).single();
   if (!document || document.user_id !== user.id) {
     return new Response(JSON.stringify({ error: "Document not found" }), { status: 404 });
   }
+  const contentType: string = document.content_type ?? "standard";
 
   const { data: allChunks, error: chunksError } = await supabase
     .from("chunks").select("id, content").eq("document_id", documentId).order("chunk_index");
@@ -126,7 +131,7 @@ export async function POST(request: Request) {
       const cardResults = await withConcurrency(
         chunks,
         CONCURRENCY,
-        (c) => generateCardsForChunk(c, documentId),
+        (c) => generateCardsForChunk(c, documentId, contentType),
         (done) => send({ progress: done, total })
       );
 
