@@ -1122,17 +1122,18 @@ export default function DeckPage() {
                             const isDraggingThis = draggingPlCard?.cardId === card.id && draggingPlCard?.plId === pl.id;
                             const isOver = dragOverPlCard?.cardId === card.id && dragOverPlCard?.plId === pl.id;
                             const isEditingThis = editingCardId === card.id;
+                            const dragLocked = isEditingThis || addingCardToPlaylistId === pl.id;
                             return (
                               <div key={card.id} className="relative group">
                                 {isOver && dragOverPlCard?.before && <div className="absolute -top-px left-0 right-0 h-0.5 rounded-full z-10" style={{ background: "var(--accent)" }} />}
                                 <div
                                   className="py-4 flex items-start gap-4"
-                                  style={{ borderBottom: "1px solid var(--border)", opacity: isDraggingThis ? 0.4 : 1, cursor: isEditingThis ? "default" : "grab" }}
-                                  draggable={!isEditingThis}
-                                  onDragStart={(e) => { if (isEditingThis) return; e.dataTransfer.effectAllowed = "move"; setDraggingPlCard({ plId: pl.id, cardId: card.id }); }}
+                                  style={{ borderBottom: "1px solid var(--border)", opacity: isDraggingThis ? 0.4 : 1, cursor: dragLocked ? "default" : "grab" }}
+                                  draggable={!dragLocked}
+                                  onDragStart={(e) => { if (dragLocked) return; e.dataTransfer.effectAllowed = "move"; setDraggingPlCard({ plId: pl.id, cardId: card.id }); }}
                                   onDragEnd={() => { setDraggingPlCard(null); setDragOverPlCard(null); }}
-                                  onDragOver={(e) => { if (isEditingThis) return; e.preventDefault(); const rect = e.currentTarget.getBoundingClientRect(); setDragOverPlCard({ plId: pl.id, cardId: card.id, before: e.clientY < rect.top + rect.height / 2 }); }}
-                                  onDrop={(e) => { e.preventDefault(); if (!isEditingThis && draggingPlCard && draggingPlCard.cardId !== card.id) reorderPlaylistCards(pl.id, draggingPlCard.cardId, card.id, dragOverPlCard?.before ?? true); setDraggingPlCard(null); setDragOverPlCard(null); }}
+                                  onDragOver={(e) => { if (dragLocked) return; e.preventDefault(); const rect = e.currentTarget.getBoundingClientRect(); setDragOverPlCard({ plId: pl.id, cardId: card.id, before: e.clientY < rect.top + rect.height / 2 }); }}
+                                  onDrop={(e) => { e.preventDefault(); if (!dragLocked && draggingPlCard && draggingPlCard.cardId !== card.id) reorderPlaylistCards(pl.id, draggingPlCard.cardId, card.id, dragOverPlCard?.before ?? true); setDraggingPlCard(null); setDragOverPlCard(null); }}
                                 >
                                   <svg viewBox="0 0 10 16" className={`w-2 h-3.5 flex-shrink-0 mt-1 transition-opacity ${isEditingThis ? "opacity-0" : "opacity-30 hover:opacity-70"}`} fill="currentColor" style={{ color: "var(--muted)" }}>
                                     <circle cx="2" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/>
