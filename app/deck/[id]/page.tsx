@@ -92,6 +92,7 @@ export default function DeckPage() {
   const [editBack, setEditBack] = useState("");
   const [editHint, setEditHint] = useState("");
   const [editRequireDrawing, setEditRequireDrawing] = useState(false);
+  const [editIsVocab, setEditIsVocab] = useState(false);
   const [editImagePath, setEditImagePath] = useState<string | null>(null);
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
@@ -110,6 +111,9 @@ export default function DeckPage() {
   const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
   const [showDrawingNew, setShowDrawingNew] = useState(false);
   const [newRequireDrawing, setNewRequireDrawing] = useState(false);
+  const [newIsVocab, setNewIsVocab] = useState(false);
+  const [newCardPlaylistOpen, setNewCardPlaylistOpen] = useState(false);
+  const [newCardPlaylistIds, setNewCardPlaylistIds] = useState<Set<string>>(new Set());
   const [creatingCard, setCreatingCard] = useState(false);
 
   // Add source
@@ -305,6 +309,7 @@ export default function DeckPage() {
     setEditImagePreview(null);
     setShowDrawingEdit(false);
     setEditRequireDrawing(card.require_drawing ?? false);
+    setEditIsVocab(card.is_vocab ?? false);
   }
 
   async function saveCard() {
@@ -314,7 +319,7 @@ export default function DeckPage() {
     const res = await fetch(`/api/cards/${editingCardId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ front: editFront, back: editBack, hint: editHint || null, image_url: editImageFile ? await uploadCardImage(editImageFile) : editImagePath, require_drawing: editRequireDrawing }),
+      body: JSON.stringify({ front: editFront, back: editBack, hint: editHint || null, image_url: editImageFile ? await uploadCardImage(editImageFile) : editImagePath, require_drawing: editRequireDrawing, is_vocab: editIsVocab }),
     });
     if (res.ok) {
       const updated = await res.json();
@@ -425,17 +430,35 @@ export default function DeckPage() {
     const res = await fetch("/api/cards", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ documentId: id, front: newFront, back: newBack, hint: newHint || null, image_url: newImageFile ? await uploadCardImage(newImageFile) : null, require_drawing: newRequireDrawing }),
+      body: JSON.stringify({ documentId: id, front: newFront, back: newBack, hint: newHint || null, image_url: newImageFile ? await uploadCardImage(newImageFile) : null, require_drawing: newRequireDrawing, is_vocab: newIsVocab }),
     });
     if (res.ok) {
       const card = await res.json();
       setCards((prev) => [...prev, card]);
+      if (newCardPlaylistIds.size > 0) {
+        await Promise.all([...newCardPlaylistIds].map(plId =>
+          fetch(`/api/playlists/${plId}/cards`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cardId: card.id }) })
+        ));
+        setPlaylistCardIds(prev => {
+          const m = new Map(prev);
+          [...newCardPlaylistIds].forEach(plId => { const s = new Set(m.get(plId) ?? []); s.add(card.id); m.set(plId, s); });
+          return m;
+        });
+        setPlaylistCardOrder(prev => {
+          const m = new Map(prev);
+          [...newCardPlaylistIds].forEach(plId => { m.set(plId, [...(m.get(plId) ?? []), card.id]); });
+          return m;
+        });
+      }
       setNewFront("");
       setNewBack("");
       setNewHint("");
       setNewImageFile(null);
       setNewImagePreview(null);
       setNewRequireDrawing(false);
+      setNewIsVocab(false);
+      setNewCardPlaylistIds(new Set());
+      setNewCardPlaylistOpen(false);
       if (!andAnother) {
         setAddingCard(false);
       } else {
@@ -1518,6 +1541,48 @@ export default function DeckPage() {
                 </button>
               </div>
 
+              <div className="mt-4 flex items-center justify-between gap-4">
+                <div>
+                  <span className="text-[13px]" style={{ color: "var(--muted)" }}>Vocab card</span>
+                  <span className="ml-2 font-mono text-[10px] uppercase tracking-[0.14em] px-1.5 py-0.5 rounded-full" style={{ background: "var(--bg-2)", color: "var(--soft)" }}>Swaps Q↔A randomly in review</span>
+                </div>
+                <button onClick={() => setNewIsVocab(v => !v)}
+                  className="relative flex-shrink-0 w-10 h-5 rounded-full transition-colors"
+                  style={{ background: newIsVocab ? "var(--ink)" : "var(--border-strong)" }}>
+                  <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform"
+                    style={{ transform: newIsVocab ? "translateX(20px)" : "translateX(0)" }} />
+                </button>
+              </div>
+
+              {playlists.length > 0 && (
+                <div className="mt-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[13px]" style={{ color: "var(--muted)" }}>Save to playlist</span>
+                    <button
+                      onClick={() => setNewCardPlaylistOpen(v => !v)}
+                      className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] px-2.5 py-1 rounded-full transition-colors"
+                      style={{ background: newCardPlaylistOpen ? "var(--ink)" : "var(--bg-2)", color: newCardPlaylistOpen ? "var(--bg)" : newCardPlaylistIds.size > 0 ? "var(--accent-deep)" : "var(--muted)" }}>
+                      {newCardPlaylistIds.size > 0 ? `${newCardPlaylistIds.size} selected` : "Select"}
+                    </button>
+                  </div>
+                  {newCardPlaylistOpen && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {playlists.map(pl => {
+                        const selected = newCardPlaylistIds.has(pl.id);
+                        return (
+                          <button key={pl.id}
+                            onClick={() => setNewCardPlaylistIds(prev => { const s = new Set(prev); s.has(pl.id) ? s.delete(pl.id) : s.add(pl.id); return s; })}
+                            className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] px-2 py-1 rounded-full transition-colors"
+                            style={{ background: selected ? "var(--ink)" : "var(--bg-2)", color: selected ? "var(--bg)" : "var(--muted)" }}>
+                            {selected ? "✓ " : "+ "}{pl.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="mt-4 flex gap-2 flex-wrap">
                 <button
                   onClick={() => createCard(false)}
@@ -1709,6 +1774,7 @@ export default function DeckPage() {
                             return (
                               <div className="mt-1 flex items-center gap-2">
                                 <span className="font-mono text-[10px] uppercase tracking-[0.12em] flex-shrink-0" style={{ color: "var(--muted)" }}>Lv.{level}</span>
+                                {card.is_vocab && <span className="inline-flex items-center justify-center font-mono text-[10px] font-bold px-1 py-0.5 rounded flex-shrink-0" style={{ border: "1.5px solid var(--accent)", color: "var(--accent-deep)" }}>V</span>}
                                 <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: "var(--bg-2)" }}>
                                   <div className="h-full rounded-full" style={{ width: `${level >= MAX_CARD_LEVEL ? 100 : Math.round(progress * 100)}%`, background: "var(--accent)" }} />
                                 </div>
@@ -1860,6 +1926,15 @@ export default function DeckPage() {
                               style={{ transform: editRequireDrawing ? "translateX(20px)" : "translateX(0)" }} />
                           </button>
                         </div>
+                        <div className="mt-4 flex items-center justify-between gap-4">
+                          <span className="text-[13px]" style={{ color: "var(--muted)" }}>Vocab card</span>
+                          <button onClick={() => setEditIsVocab(v => !v)}
+                            className="relative flex-shrink-0 w-10 h-5 rounded-full transition-colors"
+                            style={{ background: editIsVocab ? "var(--ink)" : "var(--border-strong)" }}>
+                            <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform"
+                              style={{ transform: editIsVocab ? "translateX(20px)" : "translateX(0)" }} />
+                          </button>
+                        </div>
                         <div className="mt-4 flex items-center gap-2 flex-wrap">
                           <button
                             onClick={saveCard}
@@ -1959,6 +2034,9 @@ export default function DeckPage() {
                                   </span>
                                 );
                               })()}
+                              {card.is_vocab && (
+                                <span className="inline-flex items-center justify-center font-mono text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0" style={{ border: "1.5px solid var(--accent)", color: "var(--accent-deep)" }}>V</span>
+                              )}
                             </div>
                           {openCardPlaylistId === card.id && playlists.length > 0 && (
                             <div className="mb-3 flex flex-wrap gap-1.5 items-center">

@@ -369,6 +369,13 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
           </div>
         ) : (
           <div className="flex flex-col gap-8">
+            {sortedFolders.length > 0 && (
+              <div className="flex items-center gap-2 -mb-2">
+                <Eyebrow>Folders</Eyebrow>
+                <span className="font-mono text-[11px]" style={{ color: "var(--border-strong)" }}>·</span>
+                <Eyebrow>{sortedFolders.length}</Eyebrow>
+              </div>
+            )}
             {sortedFolders.map((folder) => {
               const folderDecks = applySortBy(filteredDecks.filter((d) => d.folder_id === folder.id), sortBy);
               const isOver = dragOverTarget === folder.id;

@@ -24,6 +24,7 @@ export async function PUT(request: Request) {
     interval_good:   Math.max(0.001, Number(body.interval_good)  || DEFAULT_SETTINGS.interval_good),
     interval_easy:   Math.max(0.001, Number(body.interval_easy)  || DEFAULT_SETTINGS.interval_easy),
     type_in_answer:  Boolean(body.type_in_answer),
+    skip_max_level:  Boolean(body.skip_max_level),
     updated_at: new Date().toISOString(),
   };
 

@@ -54,6 +54,7 @@ export interface Card {
   image_url: string | null;
   position: number | null;
   require_drawing: boolean;
+  is_vocab: boolean;
   created_at: string;
 }
 
@@ -76,6 +77,7 @@ export interface UserSettings {
   interval_good: number;
   interval_easy: number;
   type_in_answer: boolean;
+  skip_max_level: boolean;
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -84,4 +86,5 @@ export const DEFAULT_SETTINGS: UserSettings = {
   interval_good: 1,
   interval_easy: 6,
   type_in_answer: false,
+  skip_max_level: false,
 };

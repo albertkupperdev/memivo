@@ -16,7 +16,7 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const { front, back, hint, image_url, position, require_drawing } = await request.json();
+  const { front, back, hint, image_url, position, require_drawing, is_vocab } = await request.json();
   if (!front?.trim() || !back?.trim()) {
     return NextResponse.json({ error: "front and back are required" }, { status: 400 });
   }
@@ -33,7 +33,7 @@ export async function PATCH(
 
   const { error: updateError } = await supabase
     .from("cards")
-    .update({ front: front.trim(), back: back.trim(), hint: hint?.trim() ?? null, ...(image_url !== undefined ? { image_url } : {}), ...(position !== undefined ? { position } : {}), ...(require_drawing !== undefined ? { require_drawing } : {}) })
+    .update({ front: front.trim(), back: back.trim(), hint: hint?.trim() ?? null, ...(image_url !== undefined ? { image_url } : {}), ...(position !== undefined ? { position } : {}), ...(require_drawing !== undefined ? { require_drawing } : {}), ...(is_vocab !== undefined ? { is_vocab } : {}) })
     .eq("id", id);
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });

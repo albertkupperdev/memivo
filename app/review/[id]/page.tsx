@@ -20,6 +20,7 @@ function CardImage({ path }: { path: string }) {
 import { formatInterval } from "@/lib/sm2";
 import type { Card, ReviewRating, UserSettings } from "@/types";
 import { DEFAULT_SETTINGS } from "@/types";
+import { getCardLevel, MAX_CARD_LEVEL } from "@/lib/levels";
 
 function Eyebrow({ children, className = "", style = {} }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
@@ -83,6 +84,8 @@ export default function ReviewPage() {
   const [submitting, setSubmitting] = useState(false);
   const [noCards, setNoCards] = useState(false);
   const [noDue, setNoDue] = useState(false);
+  const [vocabMode, setVocabMode] = useState<"normal" | "flipped" | "random" | null>(null);
+  const flippedIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     async function load() {
@@ -94,8 +97,9 @@ export default function ReviewPage() {
       setSettings(settingsRes);
       setTypeInActive(settingsRes.type_in_answer ?? false);
       if (!allCards || allCards.length === 0) { setNoCards(true); setLoaded(true); return; }
-      const { data: reviews } = await supabase.from("card_reviews").select("card_id, due_date").in("card_id", allCards.map((c) => c.id));
+      const { data: reviews } = await supabase.from("card_reviews").select("card_id, due_date, card_xp").in("card_id", allCards.map((c) => c.id));
       const reviewedMap = new Map(reviews?.map((r) => [r.card_id, r.due_date]));
+      const cardXpMap = new Map(reviews?.map((r) => [r.card_id, r.card_xp ?? 0]) ?? []);
       const playlistId = searchParams.get("playlist");
       let eligibleCards = allCards;
       if (playlistId) {
@@ -104,7 +108,10 @@ export default function ReviewPage() {
         eligibleCards = allCards.filter(c => ids.has(c.id));
       }
       const nowMs = Date.now();
-      const allDue = eligibleCards.filter((c) => { const d = reviewedMap.get(c.id); return !d || new Date(d).getTime() <= nowMs; });
+      let allDue = eligibleCards.filter((c) => { const d = reviewedMap.get(c.id); return !d || new Date(d).getTime() <= nowMs; });
+      if (settingsRes.skip_max_level) {
+        allDue = allDue.filter(c => getCardLevel(cardXpMap.get(c.id) ?? 0) < MAX_CARD_LEVEL);
+      }
       const due = limit ? allDue.slice(0, limit) : allDue;
 
       if (due.length === 0) { setNoDue(true); setLoaded(true); return; }
@@ -243,6 +250,47 @@ export default function ReviewPage() {
     );
   }
 
+  const hasVocabCards = cards.some(c => c.is_vocab);
+
+  if (loaded && total > 0 && hasVocabCards && vocabMode === null) {
+    return (
+      <div className="flex-1 w-full flex items-center justify-center">
+        <div className="max-w-sm w-full px-6 py-16 text-center">
+          <Eyebrow>This session has vocab cards</Eyebrow>
+          <h2 className="mt-3 font-serif text-[40px] leading-tight text-[var(--ink)]">Vocab Mode</h2>
+          <p className="mt-3 text-[14px] leading-relaxed" style={{ color: "var(--ink-soft)" }}>
+            Vocab cards can show in either direction. Pick how you want them to appear.
+          </p>
+          <div className="mt-10 flex flex-col gap-3">
+            {(["normal", "flipped", "random"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => {
+                  if (mode === "random") {
+                    cards.forEach(c => { if (c.is_vocab && Math.random() < 0.5) flippedIdsRef.current.add(c.id); });
+                  }
+                  setVocabMode(mode);
+                }}
+                className="w-full flex flex-col items-start px-5 py-4 rounded-2xl text-left transition-colors"
+                style={{ border: "1.5px solid var(--border)", background: "white" }}
+              >
+                <span className="font-mono text-[11px] uppercase tracking-[0.14em] font-bold" style={{ color: "var(--ink)" }}>
+                  {mode === "normal" ? "Normal" : mode === "flipped" ? "Flipped" : "Random"}
+                </span>
+                <span className="mt-1 text-[13px]" style={{ color: "var(--muted)" }}>
+                  {mode === "normal" ? "Question → Answer (as written)" : mode === "flipped" ? "Answer → Question (always swapped)" : "Random mix of both directions per card"}
+                </span>
+              </button>
+            ))}
+          </div>
+          <Link href={`/deck/${id}`} className="mt-8 inline-block font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>
+            Back to deck
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (done) {
     const counts = ratings.reduce<Record<ReviewRating, number>>(
       (acc, r) => ({ ...acc, [r]: (acc[r] || 0) + 1 }),
@@ -314,6 +362,9 @@ export default function ReviewPage() {
   }
 
   const card = cards[idx];
+  const isFlipped = card.is_vocab && (vocabMode === "flipped" || (vocabMode === "random" && flippedIdsRef.current.has(card.id)));
+  const displayFront = isFlipped ? card.back : card.front;
+  const displayBack = isFlipped ? card.front : card.back;
 
   return (
     <div className="flex-1 w-full flex flex-col">
@@ -386,9 +437,12 @@ export default function ReviewPage() {
             </span>
 
             {card.image_url && <CardImage path={card.image_url} />}
-            <Eyebrow>Question</Eyebrow>
+            <div className="flex items-center gap-2 mb-1">
+              <Eyebrow>Question</Eyebrow>
+              {isFlipped && <Eyebrow style={{ color: "var(--accent-deep)" }}>· flipped</Eyebrow>}
+            </div>
             <p className="mt-4 font-serif text-[34px] sm:text-[40px] leading-[1.15] text-[var(--ink)] whitespace-pre-wrap">
-              {card.front}
+              {displayFront}
             </p>
 
             {/* Hint */}
@@ -430,7 +484,7 @@ export default function ReviewPage() {
                 )}
                 <Eyebrow style={{ color: "var(--accent-deep)" }}>Answer</Eyebrow>
                 <p className="mt-3 text-[17px] sm:text-[18px] leading-[1.65] whitespace-pre-wrap" style={{ color: "var(--ink-soft)" }}>
-                  {card.back}
+                  {displayBack}
                 </p>
 
                 {chunkMap.has(card.chunk_id) && (
