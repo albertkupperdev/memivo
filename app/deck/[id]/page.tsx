@@ -1121,19 +1121,20 @@ export default function DeckPage() {
                           .map((card, ci) => {
                             const isDraggingThis = draggingPlCard?.cardId === card.id && draggingPlCard?.plId === pl.id;
                             const isOver = dragOverPlCard?.cardId === card.id && dragOverPlCard?.plId === pl.id;
+                            const isEditingThis = editingCardId === card.id;
                             return (
-                              <div key={card.id} className="relative">
+                              <div key={card.id} className="relative group">
                                 {isOver && dragOverPlCard?.before && <div className="absolute -top-px left-0 right-0 h-0.5 rounded-full z-10" style={{ background: "var(--accent)" }} />}
                                 <div
-                                  className="py-4 flex items-start gap-4 cursor-grab active:cursor-grabbing"
-                                  style={{ borderBottom: "1px solid var(--border)", opacity: isDraggingThis ? 0.4 : 1 }}
-                                  draggable
-                                  onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; setDraggingPlCard({ plId: pl.id, cardId: card.id }); }}
+                                  className="py-4 flex items-start gap-4"
+                                  style={{ borderBottom: "1px solid var(--border)", opacity: isDraggingThis ? 0.4 : 1, cursor: isEditingThis ? "default" : "grab" }}
+                                  draggable={!isEditingThis}
+                                  onDragStart={(e) => { if (isEditingThis) return; e.dataTransfer.effectAllowed = "move"; setDraggingPlCard({ plId: pl.id, cardId: card.id }); }}
                                   onDragEnd={() => { setDraggingPlCard(null); setDragOverPlCard(null); }}
-                                  onDragOver={(e) => { e.preventDefault(); const rect = e.currentTarget.getBoundingClientRect(); setDragOverPlCard({ plId: pl.id, cardId: card.id, before: e.clientY < rect.top + rect.height / 2 }); }}
-                                  onDrop={(e) => { e.preventDefault(); if (draggingPlCard && draggingPlCard.cardId !== card.id) reorderPlaylistCards(pl.id, draggingPlCard.cardId, card.id, dragOverPlCard?.before ?? true); setDraggingPlCard(null); setDragOverPlCard(null); }}
+                                  onDragOver={(e) => { if (isEditingThis) return; e.preventDefault(); const rect = e.currentTarget.getBoundingClientRect(); setDragOverPlCard({ plId: pl.id, cardId: card.id, before: e.clientY < rect.top + rect.height / 2 }); }}
+                                  onDrop={(e) => { e.preventDefault(); if (!isEditingThis && draggingPlCard && draggingPlCard.cardId !== card.id) reorderPlaylistCards(pl.id, draggingPlCard.cardId, card.id, dragOverPlCard?.before ?? true); setDraggingPlCard(null); setDragOverPlCard(null); }}
                                 >
-                                  <svg viewBox="0 0 10 16" className="w-2 h-3.5 flex-shrink-0 mt-1 opacity-30 hover:opacity-70" fill="currentColor" style={{ color: "var(--muted)" }}>
+                                  <svg viewBox="0 0 10 16" className={`w-2 h-3.5 flex-shrink-0 mt-1 transition-opacity ${isEditingThis ? "opacity-0" : "opacity-30 hover:opacity-70"}`} fill="currentColor" style={{ color: "var(--muted)" }}>
                                     <circle cx="2" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/>
                                     <circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/>
                                     <circle cx="2" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/>
@@ -1142,10 +1143,30 @@ export default function DeckPage() {
                                     {String(ci + 1).padStart(2, "0")}
                                   </span>
                                   <div className="flex-1 min-w-0">
-                                    <p className="font-serif text-[16px] leading-snug text-[var(--ink)] whitespace-pre-wrap">{card.front}</p>
-                                    <p className="mt-1 text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
-                                    {card.hint && <p className="mt-1 text-[12px] whitespace-pre-wrap" style={{ color: "var(--muted)" }}><span className="font-mono text-[10px] uppercase tracking-[0.14em] mr-1" style={{ color: "var(--soft)" }}>Hint</span>{card.hint}</p>}
+                                    {isEditingThis ? (
+                                      <>
+                                        <textarea value={editFront} onChange={e => setEditFront(e.target.value)} rows={2} placeholder="Front" className="w-full font-serif text-[16px] leading-snug bg-transparent outline-none border-b resize-none" style={{ borderColor: "var(--border-strong)", color: "var(--ink)" }} autoFocus />
+                                        <textarea value={editBack} onChange={e => setEditBack(e.target.value)} rows={2} placeholder="Back" className="mt-2 w-full text-[13px] leading-relaxed bg-transparent outline-none border-b resize-none" style={{ borderColor: "var(--border-strong)", color: "var(--ink-soft)" }} />
+                                        <textarea value={editHint} onChange={e => setEditHint(e.target.value)} rows={1} placeholder="Hint (optional)" className="mt-2 w-full text-[12px] bg-transparent outline-none border-b resize-none" style={{ borderColor: "var(--border-strong)", color: "var(--muted)" }} />
+                                        <div className="mt-2 flex gap-2 items-center">
+                                          <button onClick={saveCard} disabled={savingCard || !editFront.trim() || !editBack.trim()} className="px-2.5 py-1 text-xs font-medium rounded-lg text-white disabled:opacity-50" style={{ background: "var(--ink)" }}>{savingCard ? "…" : "Save"}</button>
+                                          <button onClick={() => { setEditingCardId(null); setSaveCardError(null); }} className="px-2.5 py-1 text-xs font-medium" style={{ color: "var(--muted)" }}>Cancel</button>
+                                          {saveCardError && <span className="text-[11px]" style={{ color: "var(--complement-deep)" }}>{saveCardError}</span>}
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <p className="font-serif text-[16px] leading-snug text-[var(--ink)] whitespace-pre-wrap">{card.front}</p>
+                                        <p className="mt-1 text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
+                                        {card.hint && <p className="mt-1 text-[12px] whitespace-pre-wrap" style={{ color: "var(--muted)" }}><span className="font-mono text-[10px] uppercase tracking-[0.14em] mr-1" style={{ color: "var(--soft)" }}>Hint</span>{card.hint}</p>}
+                                      </>
+                                    )}
                                   </div>
+                                  {!isEditingThis && (
+                                    <button onClick={() => startEditCard(card)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-[var(--bg-2)] flex-shrink-0 mt-0.5" style={{ color: "var(--muted)" }} title="Edit card">
+                                      <PencilIcon />
+                                    </button>
+                                  )}
                                 </div>
                                 {isOver && !dragOverPlCard?.before && <div className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full z-10" style={{ background: "var(--accent)" }} />}
                               </div>
