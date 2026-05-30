@@ -1163,9 +1163,16 @@ export default function DeckPage() {
                                     )}
                                   </div>
                                   {!isEditingThis && (
-                                    <button onClick={() => startEditCard(card)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-[var(--bg-2)] flex-shrink-0 mt-0.5" style={{ color: "var(--muted)" }} title="Edit card">
-                                      <PencilIcon />
-                                    </button>
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 flex-shrink-0 mt-0.5">
+                                      <button onClick={() => startEditCard(card)} className="p-1 rounded-lg hover:bg-[var(--bg-2)]" style={{ color: "var(--muted)" }} title="Edit card">
+                                        <PencilIcon />
+                                      </button>
+                                      <button onClick={() => toggleCardInPlaylist(pl.id, card.id)} className="p-1 rounded-lg hover:bg-[var(--bg-2)]" style={{ color: "var(--muted)" }} title="Remove from playlist">
+                                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M18 6 6 18M6 6l12 12"/>
+                                        </svg>
+                                      </button>
+                                    </div>
                                   )}
                                 </div>
                                 {isOver && !dragOverPlCard?.before && <div className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full z-10" style={{ background: "var(--accent)" }} />}
