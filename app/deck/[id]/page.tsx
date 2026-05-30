@@ -160,6 +160,10 @@ export default function DeckPage() {
   const [playlistNewFront, setPlaylistNewFront] = useState("");
   const [playlistNewBack, setPlaylistNewBack] = useState("");
   const [playlistNewHint, setPlaylistNewHint] = useState("");
+  const [playlistNewImageFile, setPlaylistNewImageFile] = useState<File | null>(null);
+  const [playlistNewImagePreview, setPlaylistNewImagePreview] = useState<string | null>(null);
+  const [playlistNewRequireDrawing, setPlaylistNewRequireDrawing] = useState(false);
+  const [showDrawingPlaylistNew, setShowDrawingPlaylistNew] = useState(false);
   const [creatingPlaylistCard, setCreatingPlaylistCard] = useState(false);
 
   // Scroll-aware header
@@ -495,10 +499,11 @@ export default function DeckPage() {
   async function createCardInPlaylist(plId: string, andAnother = false) {
     if (!playlistNewFront.trim() || !playlistNewBack.trim()) return;
     setCreatingPlaylistCard(true);
+    const image_url = playlistNewImageFile ? await uploadCardImage(playlistNewImageFile) : null;
     const res = await fetch("/api/cards", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ documentId: id, front: playlistNewFront, back: playlistNewBack, hint: playlistNewHint || null }),
+      body: JSON.stringify({ documentId: id, front: playlistNewFront, back: playlistNewBack, hint: playlistNewHint || null, image_url, require_drawing: playlistNewRequireDrawing }),
     });
     if (res.ok) {
       const card = await res.json();
@@ -515,9 +520,17 @@ export default function DeckPage() {
         m.set(plId, s);
         return m;
       });
+      setPlaylistCardOrder(prev => {
+        const m = new Map(prev);
+        m.set(plId, [...(m.get(plId) ?? []), card.id]);
+        return m;
+      });
       setPlaylistNewFront("");
       setPlaylistNewBack("");
       setPlaylistNewHint("");
+      setPlaylistNewImageFile(null);
+      setPlaylistNewImagePreview(null);
+      setPlaylistNewRequireDrawing(false);
       if (!andAnother) setAddingCardToPlaylistId(null);
       else setTimeout(() => window.document.getElementById(`playlist-new-front-${plId}`)?.focus(), 50);
     }
@@ -1210,6 +1223,57 @@ export default function DeckPage() {
                               className="mt-2 w-full text-[12px] bg-transparent outline-none border-b resize-none"
                               style={{ borderColor: "var(--border-strong)", color: "var(--muted)" }}
                             />
+                            <div className="mt-3">
+                              {showDrawingPlaylistNew ? (
+                                <DrawingCanvas
+                                  onSave={async (blob) => {
+                                    const file = new File([blob], "drawing.png", { type: "image/png" });
+                                    setPlaylistNewImageFile(file);
+                                    setPlaylistNewImagePreview(URL.createObjectURL(blob));
+                                    setShowDrawingPlaylistNew(false);
+                                  }}
+                                  onCancel={() => setShowDrawingPlaylistNew(false)}
+                                />
+                              ) : playlistNewImagePreview ? (
+                                <div className="relative inline-block">
+                                  <img src={playlistNewImagePreview} alt="" className="rounded-xl max-h-36 object-contain" />
+                                  <button onClick={() => { setPlaylistNewImageFile(null); setPlaylistNewImagePreview(null); }}
+                                    className="absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs"
+                                    style={{ background: "var(--complement)" }}>✕</button>
+                                </div>
+                              ) : (
+                                <div className="flex gap-3">
+                                  <label className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] cursor-pointer transition-colors" style={{ color: "var(--muted)" }}>
+                                    <input type="file" accept="image/*" className="hidden" onChange={e => {
+                                      const f = e.target.files?.[0] ?? null;
+                                      setPlaylistNewImageFile(f);
+                                      setPlaylistNewImagePreview(f ? URL.createObjectURL(f) : null);
+                                    }} />
+                                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                      <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>
+                                    </svg>
+                                    Add image
+                                  </label>
+                                  <button onClick={() => setShowDrawingPlaylistNew(true)}
+                                    className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
+                                    style={{ color: "var(--muted)" }}>
+                                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                                    </svg>
+                                    Draw
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                            <div className="mt-3 flex items-center justify-between gap-4">
+                              <span className="text-[13px]" style={{ color: "var(--muted)" }}>Draw answer mode</span>
+                              <button onClick={() => setPlaylistNewRequireDrawing(v => !v)}
+                                className="relative flex-shrink-0 w-10 h-5 rounded-full transition-colors"
+                                style={{ background: playlistNewRequireDrawing ? "var(--ink)" : "var(--border-strong)" }}>
+                                <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform"
+                                  style={{ transform: playlistNewRequireDrawing ? "translateX(20px)" : "translateX(0)" }} />
+                              </button>
+                            </div>
                             <div className="mt-3 flex gap-2 flex-wrap">
                               <button onClick={() => createCardInPlaylist(pl.id, false)} disabled={creatingPlaylistCard || !playlistNewFront.trim() || !playlistNewBack.trim()}
                                 className="px-3 py-1.5 text-sm font-medium rounded-lg text-white disabled:opacity-50" style={{ background: "var(--ink)" }}>
@@ -1219,7 +1283,7 @@ export default function DeckPage() {
                                 className="px-3 py-1.5 text-sm font-medium rounded-lg disabled:opacity-50" style={{ background: "var(--accent-tint)", color: "var(--accent-deep)" }}>
                                 Save & add another
                               </button>
-                              <button onClick={() => { setAddingCardToPlaylistId(null); setPlaylistNewFront(""); setPlaylistNewBack(""); setPlaylistNewHint(""); }}
+                              <button onClick={() => { setAddingCardToPlaylistId(null); setPlaylistNewFront(""); setPlaylistNewBack(""); setPlaylistNewHint(""); setPlaylistNewImageFile(null); setPlaylistNewImagePreview(null); setPlaylistNewRequireDrawing(false); setShowDrawingPlaylistNew(false); }}
                                 className="px-3 py-1.5 text-sm font-medium" style={{ color: "var(--muted)" }}>
                                 Cancel
                               </button>
@@ -1227,7 +1291,7 @@ export default function DeckPage() {
                           </div>
                         ) : (
                           <button
-                            onClick={() => { setAddingCardToPlaylistId(pl.id); setPlaylistNewFront(""); setPlaylistNewBack(""); setPlaylistNewHint(""); }}
+                            onClick={() => { setAddingCardToPlaylistId(pl.id); setPlaylistNewFront(""); setPlaylistNewBack(""); setPlaylistNewHint(""); setPlaylistNewImageFile(null); setPlaylistNewImagePreview(null); setPlaylistNewRequireDrawing(false); }}
                             className="mt-3 inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
                             style={{ color: "var(--accent-deep)" }}
                           >
