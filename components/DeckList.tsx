@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect, startTransition } from "react";
+import { useRef, useState, useEffect } from "react";
 import { DECK_LEVEL_NAMES } from "@/lib/levels";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -65,8 +65,8 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
   const [decks, setDecks] = useState(initialDecks);
   const [folders, setFolders] = useState(initialFolders);
 
-  useEffect(() => { startTransition(() => setDecks(initialDecks)); }, [initialDecks]);
-  useEffect(() => { startTransition(() => setFolders(initialFolders)); }, [initialFolders]);
+  useEffect(() => { setDecks(initialDecks); }, [initialDecks]);
+  useEffect(() => { setFolders(initialFolders); }, [initialFolders]);
   const [showUploader, setShowUploader] = useState(initialDecks.length === 0);
   const [sortBy, setSortBy] = useState<SortBy>("custom");
 
