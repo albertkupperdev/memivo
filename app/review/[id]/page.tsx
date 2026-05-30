@@ -486,7 +486,7 @@ export default function ReviewPage() {
                   <textarea
                     value={typedAnswer}
                     onChange={(e) => setTypedAnswer(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (typedAnswer.trim()) { setAnswerChecked(true); setRevealed(true); } } }}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); setAnswerChecked(true); setRevealed(true); } }}
                     placeholder="Type your answer… (Enter to check)"
                     rows={3}
                     className="w-full px-4 py-3 text-[16px] rounded-2xl outline-none resize-none"
@@ -494,9 +494,8 @@ export default function ReviewPage() {
                     autoFocus
                   />
                   <button
-                    onClick={() => { if (typedAnswer.trim()) { setAnswerChecked(true); setRevealed(true); } }}
-                    disabled={!typedAnswer.trim()}
-                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-3.5 text-[15px] font-medium rounded-2xl transition-colors disabled:opacity-40"
+                    onClick={() => { setAnswerChecked(true); setRevealed(true); }}
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-3.5 text-[15px] font-medium rounded-2xl transition-colors"
                     style={{ background: "var(--ink)", color: "var(--bg)" }}
                   >
                     Check answer
