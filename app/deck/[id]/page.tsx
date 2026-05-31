@@ -1191,6 +1191,12 @@ export default function DeckPage() {
                                         <textarea value={editFront} onChange={e => setEditFront(e.target.value)} rows={2} placeholder="Front" className="w-full font-serif text-[16px] leading-snug bg-transparent outline-none border-b resize-none" style={{ borderColor: "var(--border-strong)", color: "var(--ink)" }} autoFocus />
                                         <textarea value={editBack} onChange={e => setEditBack(e.target.value)} rows={2} placeholder="Back" className="mt-2 w-full text-[13px] leading-relaxed bg-transparent outline-none border-b resize-none" style={{ borderColor: "var(--border-strong)", color: "var(--ink-soft)" }} />
                                         <textarea value={editHint} onChange={e => setEditHint(e.target.value)} rows={1} placeholder="Hint (optional)" className="mt-2 w-full text-[12px] bg-transparent outline-none border-b resize-none" style={{ borderColor: "var(--border-strong)", color: "var(--muted)" }} />
+                                        <div className="mt-2 flex items-center justify-between gap-2">
+                                          <span className="text-[11px]" style={{ color: "var(--muted)" }}>Vocab card</span>
+                                          <button onClick={() => setEditIsVocab(v => !v)} className="relative flex-shrink-0 w-8 h-4 rounded-full transition-colors" style={{ background: editIsVocab ? "var(--ink)" : "var(--border-strong)" }}>
+                                            <span className="absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform" style={{ transform: editIsVocab ? "translateX(16px)" : "translateX(0)" }} />
+                                          </button>
+                                        </div>
                                         <div className="mt-2 flex gap-2 items-center">
                                           <button onClick={saveCard} disabled={savingCard || !editFront.trim() || !editBack.trim()} className="px-2.5 py-1 text-xs font-medium rounded-lg text-white disabled:opacity-50" style={{ background: "var(--ink)" }}>{savingCard ? "…" : "Save"}</button>
                                           <button onClick={() => { setEditingCardId(null); setSaveCardError(null); }} className="px-2.5 py-1 text-xs font-medium" style={{ color: "var(--muted)" }}>Cancel</button>
