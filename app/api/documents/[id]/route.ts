@@ -23,6 +23,9 @@ export async function PATCH(
   if ("position" in body) {
     updates.position = typeof body.position === "number" ? body.position : null;
   }
+  if ("is_pinned" in body) {
+    updates.is_pinned = Boolean(body.is_pinned);
+  }
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }

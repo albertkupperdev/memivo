@@ -23,6 +23,7 @@ export interface Folder {
   id: string;
   user_id: string;
   name: string;
+  is_pinned: boolean;
   created_at: string;
 }
 
@@ -34,6 +35,7 @@ export interface Document {
   source_url: string | null;
   folder_id: string | null;
   position: number | null;
+  is_pinned: boolean;
   created_at: string;
 }
 

@@ -10,12 +10,18 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const { name } = await request.json();
-  if (!name?.trim()) return NextResponse.json({ error: "name is required" }, { status: 400 });
+  const body = await request.json();
+  const updates: Record<string, unknown> = {};
+  if ("name" in body) {
+    if (!body.name?.trim()) return NextResponse.json({ error: "name is required" }, { status: 400 });
+    updates.name = body.name.trim();
+  }
+  if ("is_pinned" in body) updates.is_pinned = Boolean(body.is_pinned);
+  if (Object.keys(updates).length === 0) return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
 
   const { data, error } = await supabase
     .from("folders")
-    .update({ name: name.trim() })
+    .update(updates)
     .eq("id", id)
     .eq("user_id", user.id)
     .select()

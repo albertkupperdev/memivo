@@ -155,6 +155,30 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
     });
   }
 
+  async function togglePinDeck(deckId: string) {
+    const deck = decks.find((d) => d.id === deckId);
+    if (!deck) return;
+    const is_pinned = !deck.is_pinned;
+    setDecks((prev) => prev.map((d) => d.id === deckId ? { ...d, is_pinned } : d));
+    await fetch(`/api/documents/${deckId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_pinned }),
+    });
+  }
+
+  async function togglePinFolder(folderId: string) {
+    const folder = folders.find((f) => f.id === folderId);
+    if (!folder) return;
+    const is_pinned = !folder.is_pinned;
+    setFolders((prev) => prev.map((f) => f.id === folderId ? { ...f, is_pinned } : f));
+    await fetch(`/api/folders/${folderId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_pinned }),
+    });
+  }
+
   async function deleteDeck(deckId: string) {
     setDecks((prev) => prev.filter((d) => d.id !== deckId));
     setConfirmDeleteDeckId(null);
@@ -204,8 +228,10 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
   const filteredFolders = q
     ? folders.filter((f) => f.name.toLowerCase().includes(q) || filteredDecks.some((d) => d.folder_id === f.id))
     : folders;
-  const unfiledDecks = applySortBy(filteredDecks.filter((d) => !d.folder_id), sortBy);
-  const sortedFolders = applyFolderSortBy(filteredFolders, sortBy, filteredDecks);
+  const unfiledSorted = applySortBy(filteredDecks.filter((d) => !d.folder_id), sortBy);
+  const unfiledDecks = [...unfiledSorted.filter(d => d.is_pinned), ...unfiledSorted.filter(d => !d.is_pinned)];
+  const foldersSorted = applyFolderSortBy(filteredFolders, sortBy, filteredDecks);
+  const sortedFolders = [...foldersSorted.filter(f => f.is_pinned), ...foldersSorted.filter(f => !f.is_pinned)];
   const folderMap = new Map(folders.map((f) => [f.id, f]));
 
   return (
@@ -429,6 +455,9 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
                     </div>
 
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => togglePinFolder(folder.id)} className="p-2 rounded-lg hover:bg-[var(--bg-2)] transition-colors" style={{ color: folder.is_pinned ? "var(--accent-deep)" : "var(--muted)" }} title={folder.is_pinned ? "Unpin" : "Pin"}>
+                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill={folder.is_pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"/></svg>
+                      </button>
                       <button onClick={() => { setRenamingFolderId(folder.id); setRenameValue(folder.name); }} className="p-2 rounded-lg hover:bg-[var(--bg-2)] transition-colors" style={{ color: "var(--muted)" }} title="Rename">
                         <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
                       </button>
@@ -480,6 +509,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
                               onConfirmDelete={deleteDeck}
                               onCancelDelete={() => setConfirmDeleteDeckId(null)}
                               currentFolderName={folderMap.get(deck.folder_id ?? "")?.name}
+                              onPin={togglePinDeck}
                             />
                           ))}
                         </ul>
@@ -559,7 +589,7 @@ function DeckCard({
   onDragStart, onDragEnd, isDragging,
   onDragOverDeck, onDropOnDeck, dragOverDeckId, dragInsertBefore, canReorder,
   confirmDeleteDeckId, onRequestDelete, onConfirmDelete, onCancelDelete,
-  currentFolderName,
+  currentFolderName, onPin,
 }: {
   deck: DeckWithStats;
   index: number;
@@ -580,6 +610,7 @@ function DeckCard({
   onConfirmDelete: (id: string) => void;
   onCancelDelete: () => void;
   currentFolderName?: string;
+  onPin: (deckId: string) => void;
 }) {
   const isOpen = openMoveId === deck.id;
   const isDropTarget = dragOverDeckId === deck.id;
@@ -677,6 +708,16 @@ function DeckCard({
                     {currentFolderName ?? "Move"}
                   </button>
                 )}
+                <button
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPin(deck.id); }}
+                  className="opacity-0 group-hover:opacity-100 inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-full transition-all"
+                  style={{ background: deck.is_pinned ? "var(--accent-bg)" : "var(--bg-2)", color: deck.is_pinned ? "var(--accent-deep)" : "var(--soft)" }}
+                >
+                  <svg viewBox="0 0 24 24" className="w-3 h-3" fill={deck.is_pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"/>
+                  </svg>
+                  {deck.is_pinned ? "Pinned" : "Pin"}
+                </button>
                 <button
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRequestDelete(deck.id); }}
                   className="opacity-0 group-hover:opacity-100 inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-full transition-all"
