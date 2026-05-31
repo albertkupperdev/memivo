@@ -394,84 +394,98 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
                     setDragOverTarget(null);
                     setDraggingDeckId(null);
                   }}
-                  className="rounded-2xl transition-all duration-150 p-2 -m-2"
-                  style={isOver ? { background: "var(--accent-bg)", outline: "2px solid var(--accent)", outlineOffset: -2 } : {}}
+                  className="bg-white rounded-2xl overflow-hidden transition-all duration-150"
+                  style={{ border: `1.5px solid ${isOver ? "var(--accent)" : "var(--border)"}`, boxShadow: isOver ? "0 0 0 3px var(--accent-bg)" : undefined }}
                 >
-                  <div className="flex items-center gap-2 mb-3">
-                    {renamingFolderId === folder.id ? (
-                      <input
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") renameFolder(folder.id, renameValue);
-                          if (e.key === "Escape") setRenamingFolderId(null);
-                        }}
-                        onBlur={() => { if (renameValue.trim()) renameFolder(folder.id, renameValue); else setRenamingFolderId(null); }}
-                        className="font-mono text-[11px] uppercase tracking-[0.14em] bg-transparent outline-none border-b"
-                        style={{ borderColor: "var(--accent)", color: "var(--ink)" }}
-                        autoFocus
-                      />
-                    ) : (
-                      <div className="group flex items-center gap-2">
-                        <button
-                          onClick={() => setClosedFolderIds(prev => { const s = new Set(prev); s.has(folder.id) ? s.delete(folder.id) : s.add(folder.id); return s; })}
-                          className="flex items-center gap-2 transition-opacity"
-                          title={isClosed ? "Expand folder" : "Collapse folder"}
-                        >
-                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 flex-shrink-0 transition-transform" style={{ color: "var(--muted)", transform: isClosed ? "rotate(-90deg)" : "rotate(0deg)" }} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M6 9l6 6 6-6"/>
-                          </svg>
-                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--muted)" }}>
-                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-                          </svg>
-                          <Eyebrow>{folder.name}</Eyebrow>
-                          <span className="font-mono text-[11px]" style={{ color: "var(--border-strong)" }}>·</span>
-                          <Eyebrow>{folderDecks.length}</Eyebrow>
-                        </button>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => { setRenamingFolderId(folder.id); setRenameValue(folder.name); }} className="p-1 rounded hover:bg-[var(--bg-2)]" style={{ color: "var(--muted)" }} title="Rename">
-                            <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-                          </button>
-                          <button onClick={() => deleteFolder(folder.id)} className="p-1 rounded hover:bg-[var(--bg-2)]" style={{ color: "var(--muted)" }} title="Delete folder">
-                            <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                  {/* Folder header */}
+                  <div className="group flex items-center gap-4 px-6 py-5">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: isOver ? "var(--accent-bg)" : "var(--bg-2)" }}>
+                      <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: isOver ? "var(--accent-deep)" : "var(--muted)" }}>
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                      </svg>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      {renamingFolderId === folder.id ? (
+                        <input
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") renameFolder(folder.id, renameValue);
+                            if (e.key === "Escape") setRenamingFolderId(null);
+                          }}
+                          onBlur={() => { if (renameValue.trim()) renameFolder(folder.id, renameValue); else setRenamingFolderId(null); }}
+                          className="w-full font-serif text-[20px] leading-tight bg-transparent outline-none border-b"
+                          style={{ borderColor: "var(--accent)", color: "var(--ink)" }}
+                          autoFocus
+                        />
+                      ) : (
+                        <h3 className="font-serif text-[20px] leading-tight text-[var(--ink)] truncate">{folder.name}</h3>
+                      )}
+                      <p className="mt-0.5 font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>
+                        {folderDecks.length} {folderDecks.length === 1 ? "deck" : "decks"}
+                        {isOver && <span style={{ color: "var(--accent-deep)" }}> · drop to add</span>}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => { setRenamingFolderId(folder.id); setRenameValue(folder.name); }} className="p-2 rounded-lg hover:bg-[var(--bg-2)] transition-colors" style={{ color: "var(--muted)" }} title="Rename">
+                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                      </button>
+                      <button onClick={() => deleteFolder(folder.id)} className="p-2 rounded-lg hover:bg-[var(--bg-2)] transition-colors" style={{ color: "var(--muted)" }} title="Delete folder">
+                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={() => setClosedFolderIds(prev => { const s = new Set(prev); s.has(folder.id) ? s.delete(folder.id) : s.add(folder.id); return s; })}
+                      className="p-2 rounded-lg hover:bg-[var(--bg-2)] transition-colors flex-shrink-0"
+                      style={{ color: "var(--muted)" }}
+                      title={isClosed ? "Expand" : "Collapse"}
+                    >
+                      <svg viewBox="0 0 24 24" className="w-4 h-4 transition-transform" style={{ transform: isClosed ? "rotate(-90deg)" : "rotate(0deg)" }} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M6 9l6 6 6-6"/>
+                      </svg>
+                    </button>
                   </div>
 
-                  {!isClosed && (folderDecks.length === 0 ? (
-                    <div className="rounded-2xl p-6 text-center" style={{ border: `1px dashed ${isOver ? "var(--accent)" : "var(--border-strong)"}` }}>
-                      <Eyebrow style={{ color: isOver ? "var(--accent-deep)" : undefined }}>{isOver ? "Drop here" : "No decks yet"}</Eyebrow>
+                  {/* Deck list */}
+                  {!isClosed && (
+                    <div style={{ borderTop: "1px solid var(--border)" }}>
+                      {folderDecks.length === 0 ? (
+                        <div className="px-6 py-8 text-center">
+                          <Eyebrow style={{ color: isOver ? "var(--accent-deep)" : undefined }}>{isOver ? "Drop here" : "No decks yet — drag one in"}</Eyebrow>
+                        </div>
+                      ) : (
+                        <ul className="flex flex-col gap-3 p-3">
+                          {folderDecks.map((deck, i) => (
+                            <DeckCard
+                              key={deck.id}
+                              deck={deck}
+                              index={i}
+                              folders={folders}
+                              openMoveId={openMoveId}
+                              setOpenMoveId={setOpenMoveId}
+                              onMove={moveDeck}
+                              onDragStart={(id) => { draggingRef.current = id; setDraggingDeckId(id); setDragOverDeckId(null); }}
+                              onDragEnd={() => { draggingRef.current = null; dragOverDeckRef.current = null; setDraggingDeckId(null); setDragOverDeckId(null); setDragOverTarget(null); }}
+                              isDragging={draggingDeckId === deck.id}
+                              onDragOverDeck={(id, before) => { dragOverDeckRef.current = id; dragInsertBeforeRef.current = before; setDragOverDeckId(id); setDragInsertBefore(before); setDragOverTarget(null); }}
+                              onDropOnDeck={(targetId) => { handleDeckDrop(folderDecks, targetId); }}
+                              dragOverDeckId={dragOverDeckId}
+                              dragInsertBefore={dragInsertBefore}
+                              canReorder={sortBy === "custom"}
+                              confirmDeleteDeckId={confirmDeleteDeckId}
+                              onRequestDelete={(id) => setConfirmDeleteDeckId(id)}
+                              onConfirmDelete={deleteDeck}
+                              onCancelDelete={() => setConfirmDeleteDeckId(null)}
+                              currentFolderName={folderMap.get(deck.folder_id ?? "")?.name}
+                            />
+                          ))}
+                        </ul>
+                      )}
                     </div>
-                  ) : (
-                    <ul className="flex flex-col gap-3">
-                      {folderDecks.map((deck, i) => (
-                        <DeckCard
-                          key={deck.id}
-                          deck={deck}
-                          index={i}
-                          folders={folders}
-                          openMoveId={openMoveId}
-                          setOpenMoveId={setOpenMoveId}
-                          onMove={moveDeck}
-                          onDragStart={(id) => { draggingRef.current = id; setDraggingDeckId(id); setDragOverDeckId(null); }}
-                          onDragEnd={() => { draggingRef.current = null; dragOverDeckRef.current = null; setDraggingDeckId(null); setDragOverDeckId(null); setDragOverTarget(null); }}
-                          isDragging={draggingDeckId === deck.id}
-                          onDragOverDeck={(id, before) => { dragOverDeckRef.current = id; dragInsertBeforeRef.current = before; setDragOverDeckId(id); setDragInsertBefore(before); setDragOverTarget(null); }}
-                          onDropOnDeck={(targetId) => { handleDeckDrop(folderDecks, targetId); }}
-                          dragOverDeckId={dragOverDeckId}
-                          dragInsertBefore={dragInsertBefore}
-                          canReorder={sortBy === "custom"}
-                          confirmDeleteDeckId={confirmDeleteDeckId}
-                          onRequestDelete={(id) => setConfirmDeleteDeckId(id)}
-                          onConfirmDelete={deleteDeck}
-                          onCancelDelete={() => setConfirmDeleteDeckId(null)}
-                          currentFolderName={folderMap.get(deck.folder_id ?? "")?.name}
-                        />
-                      ))}
-                    </ul>
-                  ))}
+                  )}
                 </div>
               );
             })}
