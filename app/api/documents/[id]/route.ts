@@ -26,6 +26,9 @@ export async function PATCH(
   if ("is_pinned" in body) {
     updates.is_pinned = Boolean(body.is_pinned);
   }
+  if ("deleted_at" in body) {
+    updates.deleted_at = body.deleted_at ?? null;
+  }
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }

@@ -36,6 +36,7 @@ export interface Document {
   folder_id: string | null;
   position: number | null;
   is_pinned: boolean;
+  deleted_at: string | null;
   created_at: string;
 }
 

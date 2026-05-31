@@ -182,7 +182,11 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
   async function deleteDeck(deckId: string) {
     setDecks((prev) => prev.filter((d) => d.id !== deckId));
     setConfirmDeleteDeckId(null);
-    await fetch(`/api/documents/${deckId}`, { method: "DELETE" });
+    await fetch(`/api/documents/${deckId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deleted_at: new Date().toISOString() }),
+    });
   }
 
   async function reorderSection(sectionDecks: DeckWithStats[], draggedId: string, targetId: string, before: boolean) {
@@ -240,16 +244,28 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
         <header className="mb-12">
           <div className="flex items-start justify-between gap-4 mb-6">
             <Eyebrow>Library · {new Date().getFullYear()}</Eyebrow>
-            <button
-              onClick={handleSignOut}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] rounded-full transition-colors"
-              style={{ color: "var(--muted)" }}
-            >
-              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>
-              </svg>
-              Sign out
-            </button>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/trash"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] rounded-full transition-colors"
+                style={{ color: "var(--muted)" }}
+              >
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                </svg>
+                Trash
+              </Link>
+              <button
+                onClick={handleSignOut}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] rounded-full transition-colors"
+                style={{ color: "var(--muted)" }}
+              >
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>
+                </svg>
+                Sign out
+              </button>
+            </div>
           </div>
 
           <h1 className="font-serif text-[56px] leading-[1.0] text-[var(--ink)]">
@@ -626,11 +642,11 @@ function DeckCard({
       {confirmingDelete ? (
         <div className="bg-white rounded-2xl p-5" style={{ border: "1px solid var(--complement-border)", background: "var(--complement-bg)" }}>
           <p className="text-[14px] leading-relaxed" style={{ color: "var(--complement-deeper)" }}>
-            Delete <span className="font-medium text-[var(--ink)]">&ldquo;{deck.title}&rdquo;</span>? All cards and review history will be removed.
+            Move <span className="font-medium text-[var(--ink)]">&ldquo;{deck.title}&rdquo;</span> to trash? You can restore it any time.
           </p>
           <div className="mt-3 flex gap-2">
             <button onClick={() => onConfirmDelete(deck.id)} className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-lg text-white" style={{ background: "var(--complement)" }}>
-              Delete
+              Move to trash
             </button>
             <button onClick={onCancelDelete} className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium" style={{ color: "var(--muted)" }}>
               Cancel

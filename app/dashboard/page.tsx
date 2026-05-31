@@ -24,7 +24,7 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   const [{ data: documents }, { data: folders }, { data: activities }] = await Promise.all([
-    supabase.from("documents").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+    supabase.from("documents").select("*").eq("user_id", user.id).is("deleted_at", null).order("created_at", { ascending: false }),
     supabase.from("folders").select("*").eq("user_id", user.id).order("created_at", { ascending: true }),
     supabase.from("user_activity").select("review_date, xp_earned").eq("user_id", user.id).order("review_date", { ascending: false }).limit(60),
   ]);
