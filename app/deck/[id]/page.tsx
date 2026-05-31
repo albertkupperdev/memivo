@@ -907,13 +907,13 @@ export default function DeckPage() {
           {/* Delete confirmation — only when not scrolled */}
           {confirming && !scrolled && (
             <div className="mt-4 p-5 rounded-2xl" style={{ background: "var(--complement-bg)", border: "1px solid var(--complement-border)" }}>
-              <Eyebrow style={{ color: "var(--complement-deep)" }}>Delete deck?</Eyebrow>
+              <Eyebrow style={{ color: "var(--complement-deep)" }}>Move to trash?</Eyebrow>
               <p className="mt-2 text-[14px] leading-relaxed" style={{ color: "var(--complement-deeper)" }}>
-                All <span className="font-medium text-[var(--ink)]">{cards.length}</span> cards and review history will be permanently removed.
+                This deck will be moved to trash. You can restore it any time from the Trash page.
               </p>
               <div className="mt-4 flex gap-2">
                 <button onClick={handleDelete} disabled={deleting} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-xl text-white transition-colors disabled:opacity-50" style={{ background: "var(--complement)" }}>
-                  {deleting ? "Deleting…" : "Yes, delete"}
+                  {deleting ? "Moving…" : "Move to trash"}
                 </button>
                 <button onClick={() => setConfirming(false)} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium transition-colors" style={{ color: "var(--muted)" }}>
                   Cancel
