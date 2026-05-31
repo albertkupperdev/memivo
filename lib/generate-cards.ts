@@ -2,9 +2,10 @@ import { groq, AI_MODEL } from "@/lib/ai";
 import { buildCardGenerationPrompt, buildVocabularyPrompt } from "@/lib/prompts";
 
 const MAX_CHUNKS_STANDARD = 10;
-const VOCAB_MERGE_SIZE = 1;
+const VOCAB_MERGE_SIZE = 2;
 const CONCURRENCY = 5;
-const REQUEST_TIMEOUT_MS = 10_000;
+const REQUEST_TIMEOUT_MS = 8_000;
+const DEADLINE_MS = 44_000;
 
 function isBoilerplate(text: string): boolean {
   const lower = text.toLowerCase();
@@ -53,7 +54,7 @@ async function generateForChunk(
         model: AI_MODEL,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
-        max_tokens: contentType === "vocabulary" ? 4096 : 512,
+        max_tokens: contentType === "vocabulary" ? 2048 : 512,
       },
       { signal: controller.signal }
     );
@@ -73,15 +74,26 @@ async function generateForChunk(
 }
 
 async function withConcurrency<T, R>(
-  items: T[], concurrency: number, fn: (item: T) => Promise<R>, onEach: (done: number) => void
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>,
+  onEach: (done: number) => void,
+  deadline: number
 ): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let next = 0; let done = 0;
+  const results: (R | undefined)[] = new Array(items.length);
+  let next = 0;
+  let done = 0;
   async function worker() {
-    while (next < items.length) { const i = next++; results[i] = await fn(items[i]); done++; onEach(done); }
+    while (next < items.length) {
+      if (Date.now() > deadline) break;
+      const i = next++;
+      results[i] = await fn(items[i]);
+      done++;
+      onEach(done);
+    }
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
-  return results;
+  return results.filter((r): r is R => r !== undefined);
 }
 
 export async function generateCardsFromChunks(
@@ -98,10 +110,13 @@ export async function generateCardsFromChunks(
   const total = chunks.length;
   send({ progress: 0, total });
 
+  const deadline = Date.now() + DEADLINE_MS;
   const results = await withConcurrency(
-    chunks, CONCURRENCY,
+    chunks,
+    CONCURRENCY,
     (c) => generateForChunk(c, documentId, contentType),
-    (done) => send({ progress: done, total })
+    (done) => send({ progress: done, total }),
+    deadline
   );
 
   return results.flat();

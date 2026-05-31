@@ -284,7 +284,11 @@ export default function DeckPage() {
 
   async function handleDelete() {
     setDeleting(true);
-    const res = await fetch(`/api/documents/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/documents/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deleted_at: new Date().toISOString() }),
+    });
     if (res.ok) router.push("/dashboard");
     else { setDeleting(false); setConfirming(false); }
   }
