@@ -5,9 +5,11 @@ const XP_MULTIPLIERS: Record<string, number> = {
   easy: 18,
 };
 
+const EFFORT_BONUS = 5;
+
 export function calcCardXp(rating: string, intervalDays: number): number {
   const m = XP_MULTIPLIERS[rating] ?? 10;
-  return Math.max(1, Math.round(m * Math.sqrt(intervalDays + 1)));
+  return Math.max(1, Math.round(m * Math.sqrt(intervalDays + 1)) + EFFORT_BONUS);
 }
 
 export const CARD_LEVEL_THRESHOLDS = [0, 5, 12, 25, 50, 100, 175, 275, 400, 500];
