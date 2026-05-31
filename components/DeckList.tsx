@@ -575,10 +575,10 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
                       openMoveId={openMoveId}
                       setOpenMoveId={setOpenMoveId}
                       onMove={moveDeck}
-                      onDragStart={(id) => { setDraggingDeckId(id); setDragOverDeckId(null); }}
-                      onDragEnd={() => { setDraggingDeckId(null); setDragOverDeckId(null); setDragOverTarget(null); }}
+                      onDragStart={(id) => { draggingRef.current = id; setDraggingDeckId(id); setDragOverDeckId(null); }}
+                      onDragEnd={() => { draggingRef.current = null; dragOverDeckRef.current = null; setDraggingDeckId(null); setDragOverDeckId(null); setDragOverTarget(null); }}
                       isDragging={draggingDeckId === deck.id}
-                      onDragOverDeck={(id, before) => { setDragOverDeckId(id); setDragInsertBefore(before); setDragOverTarget(null); }}
+                      onDragOverDeck={(id, before) => { dragOverDeckRef.current = id; dragInsertBeforeRef.current = before; setDragOverDeckId(id); setDragInsertBefore(before); setDragOverTarget(null); }}
                       onDropOnDeck={(targetId) => { handleDeckDrop(unfiledDecks, targetId); }}
                       dragOverDeckId={dragOverDeckId}
                       dragInsertBefore={dragInsertBefore}
@@ -588,6 +588,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
                       onConfirmDelete={deleteDeck}
                       onCancelDelete={() => setConfirmDeleteDeckId(null)}
                       currentFolderName={undefined}
+                      onPin={togglePinDeck}
                     />
                   ))}
                 </ul>
