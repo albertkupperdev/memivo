@@ -1205,6 +1205,9 @@ export default function DeckPage() {
                                       </>
                                     ) : (
                                       <>
+                                        <div className="flex items-center gap-1.5 mb-0.5">
+                                          {card.is_vocab && <span className="inline-flex items-center justify-center font-mono text-[9px] font-bold px-1 py-0.5 rounded flex-shrink-0" style={{ border: "1.5px solid var(--accent)", color: "var(--accent-deep)" }}>V</span>}
+                                        </div>
                                         <p className="font-serif text-[16px] leading-snug text-[var(--ink)] whitespace-pre-wrap">{card.front}</p>
                                         <p className="mt-1 text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--ink-soft)" }}>{card.back}</p>
                                         {card.hint && <p className="mt-1 text-[12px] whitespace-pre-wrap" style={{ color: "var(--muted)" }}><span className="font-mono text-[10px] uppercase tracking-[0.14em] mr-1" style={{ color: "var(--soft)" }}>Hint</span>{card.hint}</p>}

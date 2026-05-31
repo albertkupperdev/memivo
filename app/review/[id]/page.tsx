@@ -444,8 +444,8 @@ export default function ReviewPage() {
               {displayFront}
             </p>
 
-            {/* Hint */}
-            {card.hint && !revealed && (
+            {/* Hint — hidden when card is flipped since hint was written for the original direction */}
+            {card.hint && !revealed && !isFlipped && (
               <div className="mt-6">
                 {showHint ? (
                   <div className="inline-flex items-start gap-2 px-3 py-2 rounded-xl" style={{ background: "var(--accent-bg)" }}>

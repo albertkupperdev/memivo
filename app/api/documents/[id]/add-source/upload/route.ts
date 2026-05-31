@@ -15,7 +15,7 @@ export async function POST(
 
   const { id: documentId } = await params;
 
-  const { data: doc } = await supabase.from("documents").select("id").eq("id", documentId).eq("user_id", user.id).single();
+  const { data: doc } = await supabase.from("documents").select("id, content_type").eq("id", documentId).eq("user_id", user.id).single();
   if (!doc) return new Response(JSON.stringify({ error: "Not found" }), { status: 404 });
 
   const formData = await request.formData();
@@ -47,7 +47,7 @@ export async function POST(
   const stream = new ReadableStream({
     async start(controller) {
       const send = (obj: object) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
-      const allCards = await generateCardsFromChunks(chunks, documentId, send);
+      const allCards = await generateCardsFromChunks(chunks, documentId, send, doc.content_type ?? "standard");
       if (allCards.length === 0) { send({ error: "Failed to generate any cards" }); controller.close(); return; }
       const { data: savedCards, error: saveError } = await supabase.from("cards").insert(allCards).select();
       if (saveError || !savedCards) { send({ error: "Failed to save cards" }); } else { send({ done: true, cards: savedCards }); }
