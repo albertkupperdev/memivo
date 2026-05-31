@@ -1,11 +1,16 @@
-export const CARD_XP_PER_RATING: Record<string, number> = {
-  again: 2,
-  hard: 5,
-  good: 8,
-  easy: 10,
+const XP_MULTIPLIERS: Record<string, number> = {
+  again: 3,
+  hard: 7,
+  good: 12,
+  easy: 18,
 };
 
-export const CARD_LEVEL_THRESHOLDS = [0, 10, 25, 50, 100, 200, 350, 550, 800, 1000];
+export function calcCardXp(rating: string, intervalDays: number): number {
+  const m = XP_MULTIPLIERS[rating] ?? 10;
+  return Math.max(1, Math.round(m * Math.sqrt(intervalDays + 1)));
+}
+
+export const CARD_LEVEL_THRESHOLDS = [0, 5, 12, 25, 50, 100, 175, 275, 400, 500];
 export const MAX_CARD_LEVEL = 10;
 
 export const DECK_LEVEL_NAMES: Record<number, string> = {

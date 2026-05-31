@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { applyReview } from "@/lib/sm2";
-import { CARD_XP_PER_RATING } from "@/lib/levels";
+import { calcCardXp } from "@/lib/levels";
 import type { ReviewRating, UserSettings } from "@/types";
 
 const VALID_RATINGS: ReviewRating[] = ["again", "hard", "good", "easy"];
@@ -43,6 +43,8 @@ export async function POST(
   const currentState = existing ?? DEFAULT_STATE;
   const next = applyReview(currentState, rating as ReviewRating, userSettings as UserSettings ?? undefined);
 
+  const xpGained = calcCardXp(rating, existing?.interval_days ?? 1);
+
   const { error } = await supabase.from("card_reviews").upsert(
     {
       card_id: cardId,
@@ -52,7 +54,7 @@ export async function POST(
       repetitions: next.repetitions,
       due_date: next.due_date,
       last_reviewed_at: new Date().toISOString(),
-      card_xp: (existing?.card_xp ?? 0) + (CARD_XP_PER_RATING[rating] ?? 0),
+      card_xp: (existing?.card_xp ?? 0) + xpGained,
       review_count: (existing?.review_count ?? 0) + 1,
     },
     { onConflict: "card_id,user_id" }
@@ -89,5 +91,5 @@ export async function POST(
     }
   }
 
-  return NextResponse.json({ due_date: next.due_date });
+  return NextResponse.json({ due_date: next.due_date, xp_gained: xpGained });
 }

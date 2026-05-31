@@ -132,13 +132,12 @@ export default function ReviewPage() {
     if (submitting) return;
     setSubmitting(true);
     const card = cards[idx];
-    await fetch(`/api/review/${card.id}`, {
+    const result = await fetch(`/api/review/${card.id}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ rating }),
-    });
-    const XP = { again: 2, hard: 5, good: 8, easy: 10 } as const;
-    setSessionXp((prev) => prev + XP[rating]);
+    }).then(r => r.json()).catch(() => ({}));
+    setSessionXp((prev) => prev + (result.xp_gained ?? 10));
     setRatings((prev) => [...prev, rating]);
     setIdx((prev) => prev + 1);
     setRevealed(false);
