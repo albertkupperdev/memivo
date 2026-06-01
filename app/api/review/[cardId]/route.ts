@@ -34,7 +34,7 @@ export async function POST(
 
   const { data: existing } = await supabase
     .from("card_reviews")
-    .select("ease_factor, interval_days, repetitions, card_xp, review_count, consecutive_correct")
+    .select("ease_factor, interval_days, repetitions, card_xp, review_count, consecutive_correct, last_reviewed_at")
     .eq("card_id", cardId)
     .eq("user_id", user.id)
     .single();
@@ -45,7 +45,10 @@ export async function POST(
 
   const isCorrect = rating === "good" || rating === "easy";
   const newStreak = isCorrect ? (existing?.consecutive_correct ?? 0) + 1 : 0;
-  const baseXp = calcCardXp(rating, existing?.interval_days ?? 1);
+  const actualDays = existing?.last_reviewed_at
+    ? Math.max(0, (Date.now() - new Date(existing.last_reviewed_at).getTime()) / 86400000)
+    : (existing?.interval_days ?? 1);
+  const baseXp = calcCardXp(rating, actualDays);
   const xpGained = Math.round(baseXp * (1 + calcStreakBonus(newStreak)));
 
   const { error } = await supabase.from("card_reviews").upsert(
