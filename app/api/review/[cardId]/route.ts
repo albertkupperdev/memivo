@@ -98,5 +98,5 @@ export async function POST(
     }
   }
 
-  return NextResponse.json({ due_date: next.due_date, xp_gained: xpGained, streak: newStreak });
+  return NextResponse.json({ due_date: next.due_date, xp_gained: xpGained });
 }
