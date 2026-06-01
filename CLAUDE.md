@@ -1,8 +1,8 @@
-# Studyform
+# Memivo
 
 AI flashcard generator. Turns PDFs and web pages into spaced-repetition flashcards using Groq LLM. Cards are generated per text chunk (not per document) to keep them grounded. Users review cards using SM-2 scheduling with XP/level gamification.
 
-Live: https://studyform.vercel.app
+Live: https://memivo.app
 
 ---
 

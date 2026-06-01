@@ -5,7 +5,7 @@ export async function extractTextFromURL(
   url: string
 ): Promise<{ title: string; text: string }> {
   const response = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; Studyform/1.0)" },
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; Memivo/1.0)" },
   });
 
   if (!response.ok) {

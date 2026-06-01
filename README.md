@@ -1,10 +1,10 @@
-# Studyform
+# Memivo
 
-> Reading that becomes recall.
+> Keep your knowledge alive.
 
-Studyform turns PDFs and web pages into high-quality spaced-repetition flashcards using AI. The focus is on card quality — every card is grounded in the source text, not generated from thin air.
+Memivo turns PDFs and web pages into high-quality spaced-repetition flashcards using AI. The focus is on card quality — every card is grounded in the source text, not generated from thin air.
 
-**Live demo:** https://studyform.vercel.app
+**Live:** https://memivo.app
 
 ---
 
@@ -13,7 +13,9 @@ Studyform turns PDFs and web pages into high-quality spaced-repetition flashcard
 - Upload a PDF or paste a URL
 - Extracts and chunks the source text before generation — this is the quality lever
 - Generates 2–4 flashcards per chunk using Llama 3.3 70B via Groq
-- Reviews cards using the SM-2 spaced repetition algorithm
+- Reviews cards using the SM-2 spaced repetition algorithm with interval-based XP
+- Vocab card mode — swaps question/answer randomly during review
+- Folders, playlists, pinning, and soft-delete trash
 - Magic link authentication — no passwords
 
 ## Tech Stack
@@ -54,6 +56,8 @@ documents    — one per upload, owned by a user
 chunks       — text segments extracted from a document
 cards        — front/back pairs, each linked to a chunk
 card_reviews — SM-2 state per card per user (ease_factor, interval, due_date)
+folders      — organise decks into groups
+playlists    — curated subsets of cards within a deck
 ```
 
 Row Level Security is enabled on all tables. Users can only access their own data.
@@ -61,8 +65,8 @@ Row Level Security is enabled on all tables. Users can only access their own dat
 ## Running Locally
 
 ```bash
-git clone https://github.com/albertkupperdev/studyform
-cd studyform
+git clone https://github.com/albertkupperdev/memivo
+cd memivo
 npm install
 cp .env.example .env.local
 ```
@@ -93,6 +97,7 @@ app/
   dashboard/            — deck list
   deck/[id]/            — deck detail + card list
   review/[id]/          — review session
+  trash/                — soft-deleted decks
   login/                — magic link sign in
 lib/
   ai.ts                 — Groq client
@@ -100,5 +105,6 @@ lib/
   extract.ts            — PDF and URL text extraction
   prompts.ts            — card generation prompt
   sm2.ts                — SM-2 algorithm
+  levels.ts             — XP and level system
   supabase/             — browser and server Supabase clients
 ```

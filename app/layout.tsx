@@ -24,8 +24,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Studyform",
-  description: "Reading that becomes recall.",
+  title: "Memivo",
+  description: "Keep your knowledge alive.",
 };
 
 export default function RootLayout({

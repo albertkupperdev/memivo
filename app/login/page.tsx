@@ -44,11 +44,11 @@ export default function LoginPage() {
           {/* Logo */}
           <div className="relative w-11 h-11 flex items-center justify-center mb-7">
             <span className="absolute inset-0 rounded-full" style={{ background: "var(--accent)" }} />
-            <span className="relative font-serif text-[var(--ink)] text-xl leading-none">S</span>
+            <span className="relative font-serif text-[var(--ink)] text-xl leading-none">M</span>
           </div>
 
           <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">
-            Studyform · Sign in
+            Memivo · Sign in
           </span>
 
           <h1 className="mt-3 font-serif text-[44px] leading-[1.05] text-[var(--ink)]">
