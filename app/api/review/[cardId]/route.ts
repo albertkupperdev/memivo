@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { applyReview } from "@/lib/sm2";
-import { calcCardXp } from "@/lib/levels";
+import { calcCardXp, calcStreakBonus } from "@/lib/levels";
 import type { ReviewRating, UserSettings } from "@/types";
 
 const VALID_RATINGS: ReviewRating[] = ["again", "hard", "good", "easy"];
@@ -34,7 +34,7 @@ export async function POST(
 
   const { data: existing } = await supabase
     .from("card_reviews")
-    .select("ease_factor, interval_days, repetitions, card_xp, review_count")
+    .select("ease_factor, interval_days, repetitions, card_xp, review_count, consecutive_correct")
     .eq("card_id", cardId)
     .eq("user_id", user.id)
     .single();
@@ -43,7 +43,10 @@ export async function POST(
   const currentState = existing ?? DEFAULT_STATE;
   const next = applyReview(currentState, rating as ReviewRating, userSettings as UserSettings ?? undefined);
 
-  const xpGained = calcCardXp(rating, existing?.interval_days ?? 1);
+  const isCorrect = rating === "good" || rating === "easy";
+  const newStreak = isCorrect ? (existing?.consecutive_correct ?? 0) + 1 : 0;
+  const baseXp = calcCardXp(rating, existing?.interval_days ?? 1);
+  const xpGained = Math.round(baseXp * (1 + calcStreakBonus(newStreak)));
 
   const { error } = await supabase.from("card_reviews").upsert(
     {
@@ -56,6 +59,7 @@ export async function POST(
       last_reviewed_at: new Date().toISOString(),
       card_xp: (existing?.card_xp ?? 0) + xpGained,
       review_count: (existing?.review_count ?? 0) + 1,
+      consecutive_correct: newStreak,
     },
     { onConflict: "card_id,user_id" }
   );
@@ -91,5 +95,5 @@ export async function POST(
     }
   }
 
-  return NextResponse.json({ due_date: next.due_date, xp_gained: xpGained });
+  return NextResponse.json({ due_date: next.due_date, xp_gained: xpGained, streak: newStreak });
 }

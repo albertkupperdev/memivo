@@ -12,6 +12,11 @@ export function calcCardXp(rating: string, intervalDays: number): number {
   return Math.max(1, Math.round(m * Math.sqrt(intervalDays + 1)) + EFFORT_BONUS);
 }
 
+export function calcStreakBonus(consecutiveCorrect: number): number {
+  if (consecutiveCorrect <= 1) return 0;
+  return Math.min((consecutiveCorrect - 1) * 0.20, 0.75);
+}
+
 export const CARD_LEVEL_THRESHOLDS = [0, 5, 12, 25, 50, 100, 175, 275, 400, 500];
 export const MAX_CARD_LEVEL = 10;
 
