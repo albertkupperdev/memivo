@@ -917,6 +917,31 @@ export default function DeckPage() {
             )}
           </div>
 
+          {/* Playlist pills — always visible for quick access */}
+          {playlists.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {playlists.map(pl => {
+                const isActive = expandedPlaylistId === pl.id;
+                const color = pl.color ?? (pl.name === "Hard cards" ? "#ef4444" : undefined);
+                return (
+                  <button
+                    key={pl.id}
+                    onClick={() => {
+                      setExpandedPlaylistId(isActive ? null : pl.id);
+                      setTimeout(() => document.getElementById(`playlist-${pl.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-colors"
+                    style={{ background: isActive ? "var(--ink)" : "var(--bg-2)", color: isActive ? "var(--bg)" : "var(--ink)" }}
+                  >
+                    {color && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />}
+                    <span className="font-mono text-[10px] uppercase tracking-[0.14em]">{pl.name}</span>
+                    <span className="font-mono text-[10px]" style={{ opacity: 0.5 }}>{playlistCardIds.get(pl.id)?.size ?? 0}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {/* Session size picker — only when not scrolled and cards exist */}
           {!scrolled && dueCount > 0 && !confirming && (
             <div className="mt-3 flex items-center gap-2 flex-wrap">
@@ -1064,6 +1089,7 @@ export default function DeckPage() {
                   return (
                     <div
                       key={pl.id}
+                      id={`playlist-${pl.id}`}
                       className="group bg-white rounded-2xl px-6 py-4 flex flex-col gap-3"
                       style={{
                         border: `1px solid ${confirmDeletePlaylistId === pl.id ? "var(--complement-border)" : isDropTarget ? "var(--accent)" : pl.name === "Hard cards" ? "#fca5a5" : "var(--border)"}`,
