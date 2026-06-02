@@ -37,6 +37,8 @@ export interface Document {
   position: number | null;
   is_pinned: boolean;
   deleted_at: string | null;
+  front_language: string | null;
+  back_language: string | null;
   created_at: string;
 }
 

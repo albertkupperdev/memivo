@@ -29,6 +29,12 @@ export async function PATCH(
   if ("deleted_at" in body) {
     updates.deleted_at = body.deleted_at ?? null;
   }
+  if ("front_language" in body) {
+    updates.front_language = body.front_language?.trim() || null;
+  }
+  if ("back_language" in body) {
+    updates.back_language = body.back_language?.trim() || null;
+  }
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }

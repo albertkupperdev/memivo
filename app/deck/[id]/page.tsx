@@ -197,6 +197,12 @@ export default function DeckPage() {
   const [savingRename, setSavingRename] = useState(false);
   const renameTitleRef = useRef<HTMLInputElement>(null);
 
+  // Deck languages
+  const [editingLanguages, setEditingLanguages] = useState(false);
+  const [langFront, setLangFront] = useState("");
+  const [langBack, setLangBack] = useState("");
+  const [savingLanguages, setSavingLanguages] = useState(false);
+
   useEffect(() => {
     async function load() {
       const supabase = createClient();
@@ -367,6 +373,27 @@ export default function DeckPage() {
       setRenamingDeck(false);
     }
     setSavingRename(false);
+  }
+
+  function startEditLanguages() {
+    setLangFront(document?.front_language ?? "");
+    setLangBack(document?.back_language ?? "");
+    setEditingLanguages(true);
+  }
+
+  async function saveLanguages() {
+    setSavingLanguages(true);
+    const res = await fetch(`/api/documents/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ front_language: langFront || null, back_language: langBack || null }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setDocument(updated);
+      setEditingLanguages(false);
+    }
+    setSavingLanguages(false);
   }
 
   async function addSource() {
@@ -770,6 +797,46 @@ export default function DeckPage() {
               {document && !scrolled && (
                 <button onClick={startRename} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "var(--muted)" }} title="Rename deck">
                   <PencilIcon />
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Language settings — hidden when scrolled */}
+          {!scrolled && (
+            <div className="mt-2">
+              {editingLanguages ? (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    value={langFront}
+                    onChange={e => setLangFront(e.target.value)}
+                    placeholder="Front language (e.g. German)"
+                    className="px-2.5 py-1 text-[13px] rounded-lg outline-none"
+                    style={{ border: "1px solid var(--accent)", background: "white", color: "var(--ink)", width: 170 }}
+                    autoFocus
+                  />
+                  <span className="font-mono text-[11px]" style={{ color: "var(--muted)" }}>→</span>
+                  <input
+                    value={langBack}
+                    onChange={e => setLangBack(e.target.value)}
+                    placeholder="Back language (e.g. English)"
+                    className="px-2.5 py-1 text-[13px] rounded-lg outline-none"
+                    style={{ border: "1px solid var(--accent)", background: "white", color: "var(--ink)", width: 170 }}
+                    onKeyDown={e => { if (e.key === "Enter") saveLanguages(); if (e.key === "Escape") setEditingLanguages(false); }}
+                  />
+                  <button onClick={saveLanguages} disabled={savingLanguages} className="px-2.5 py-1 text-[12px] font-medium rounded-lg text-white disabled:opacity-50" style={{ background: "var(--ink)" }}>
+                    {savingLanguages ? "…" : "Save"}
+                  </button>
+                  <button onClick={() => setEditingLanguages(false)} className="px-2 py-1 text-[12px] font-medium" style={{ color: "var(--muted)" }}>Cancel</button>
+                </div>
+              ) : (
+                <button onClick={startEditLanguages} className="group inline-flex items-center gap-1.5 transition-opacity" style={{ color: "var(--muted)" }}>
+                  <span className="font-mono text-[11px] uppercase tracking-[0.14em]">
+                    {document?.front_language && document?.back_language
+                      ? `${document.front_language} → ${document.back_language}`
+                      : "Set vocab languages"}
+                  </span>
+                  <PencilIcon className="opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
               )}
             </div>

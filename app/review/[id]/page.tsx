@@ -86,14 +86,19 @@ export default function ReviewPage() {
   const [noDue, setNoDue] = useState(false);
   const [vocabMode, setVocabMode] = useState<"normal" | "flipped" | "random" | null>(null);
   const flippedIdsRef = useRef<Set<string>>(new Set());
+  const [deckFrontLanguage, setDeckFrontLanguage] = useState<string | null>(null);
+  const [deckBackLanguage, setDeckBackLanguage] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
       const supabase = createClient();
-      const [settingsRes, { data: allCards }] = await Promise.all([
+      const [settingsRes, { data: allCards }, { data: doc }] = await Promise.all([
         fetch("/api/settings").then(r => r.json()).catch(() => DEFAULT_SETTINGS),
         supabase.from("cards").select("*").eq("document_id", id),
+        supabase.from("documents").select("front_language, back_language").eq("id", id).single(),
       ]);
+      if (doc?.front_language) setDeckFrontLanguage(doc.front_language);
+      if (doc?.back_language) setDeckBackLanguage(doc.back_language);
       setSettings(settingsRes);
       setTypeInActive(settingsRes.type_in_answer ?? false);
       if (!allCards || allCards.length === 0) { setNoCards(true); setLoaded(true); return; }
@@ -274,10 +279,18 @@ export default function ReviewPage() {
                 style={{ border: "1.5px solid var(--border)", background: "white" }}
               >
                 <span className="font-mono text-[11px] uppercase tracking-[0.14em] font-bold" style={{ color: "var(--ink)" }}>
-                  {mode === "normal" ? "Normal" : mode === "flipped" ? "Flipped" : "Random"}
+                  {mode === "normal"
+                    ? (deckFrontLanguage && deckBackLanguage ? `${deckFrontLanguage} → ${deckBackLanguage}` : "Normal")
+                    : mode === "flipped"
+                    ? (deckFrontLanguage && deckBackLanguage ? `${deckBackLanguage} → ${deckFrontLanguage}` : "Flipped")
+                    : "Random"}
                 </span>
                 <span className="mt-1 text-[13px]" style={{ color: "var(--muted)" }}>
-                  {mode === "normal" ? "Question → Answer (as written)" : mode === "flipped" ? "Answer → Question (always swapped)" : "Random mix of both directions per card"}
+                  {mode === "normal"
+                    ? (deckFrontLanguage && deckBackLanguage ? `Cards shown as written` : "Question → Answer (as written)")
+                    : mode === "flipped"
+                    ? (deckFrontLanguage && deckBackLanguage ? `Cards shown in reverse` : "Answer → Question (always swapped)")
+                    : "Random mix of both directions per card"}
                 </span>
               </button>
             ))}
