@@ -721,6 +721,18 @@ export default function DeckPage() {
       <div ref={heroRef} className="fixed left-0 right-0 z-20" style={{ top: 47, background: "var(--bg)", borderBottom: "1px solid var(--border)" }}>
         <div className={`max-w-4xl mx-auto px-6 transition-all duration-300 ${scrolled ? "py-3" : "py-7"}`}>
 
+          {/* Top row — back link + settings */}
+          <div className="flex items-center justify-between mb-3">
+            <Link href="/dashboard" className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors hover:opacity-70" style={{ color: "var(--muted)" }}>
+              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="m12 5-7 7 7 7"/></svg>
+              All decks
+            </Link>
+            <Link href="/settings" className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors hover:opacity-70" style={{ color: "var(--muted)" }}>
+              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+              Settings
+            </Link>
+          </div>
+
           {/* Sources — hidden when scrolled */}
           {!scrolled && (
             <div className="flex flex-wrap items-center gap-2">
@@ -795,7 +807,7 @@ export default function DeckPage() {
                 </span>
               )}
               {document && !scrolled && (
-                <button onClick={startRename} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: "var(--muted)" }} title="Rename deck">
+                <button onClick={startRename} className="shrink-0 transition-opacity hover:opacity-70" style={{ color: "var(--muted)" }} title="Rename deck">
                   <PencilIcon />
                 </button>
               )}
@@ -804,39 +816,23 @@ export default function DeckPage() {
 
           {/* Language settings — hidden when scrolled */}
           {!scrolled && (
-            <div className="mt-2">
+            <div className="mt-3">
               {editingLanguages ? (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <input
-                    value={langFront}
-                    onChange={e => setLangFront(e.target.value)}
-                    placeholder="Front language (e.g. German)"
-                    className="px-2.5 py-1 text-[13px] rounded-lg outline-none"
-                    style={{ border: "1px solid var(--accent)", background: "white", color: "var(--ink)", width: 170 }}
-                    autoFocus
-                  />
+                <div className="flex items-center gap-2 flex-wrap p-3 rounded-xl" style={{ background: "var(--bg-2)" }}>
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--muted)" }}><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>
+                  <input value={langFront} onChange={e => setLangFront(e.target.value)} placeholder="Front language (e.g. German)" className="px-2.5 py-1 text-[13px] rounded-lg outline-none" style={{ border: "1px solid var(--accent)", background: "white", color: "var(--ink)", width: 160 }} autoFocus />
                   <span className="font-mono text-[11px]" style={{ color: "var(--muted)" }}>→</span>
-                  <input
-                    value={langBack}
-                    onChange={e => setLangBack(e.target.value)}
-                    placeholder="Back language (e.g. English)"
-                    className="px-2.5 py-1 text-[13px] rounded-lg outline-none"
-                    style={{ border: "1px solid var(--accent)", background: "white", color: "var(--ink)", width: 170 }}
-                    onKeyDown={e => { if (e.key === "Enter") saveLanguages(); if (e.key === "Escape") setEditingLanguages(false); }}
-                  />
-                  <button onClick={saveLanguages} disabled={savingLanguages} className="px-2.5 py-1 text-[12px] font-medium rounded-lg text-white disabled:opacity-50" style={{ background: "var(--ink)" }}>
-                    {savingLanguages ? "…" : "Save"}
-                  </button>
+                  <input value={langBack} onChange={e => setLangBack(e.target.value)} placeholder="Back language (e.g. English)" className="px-2.5 py-1 text-[13px] rounded-lg outline-none" style={{ border: "1px solid var(--accent)", background: "white", color: "var(--ink)", width: 160 }} onKeyDown={e => { if (e.key === "Enter") saveLanguages(); if (e.key === "Escape") setEditingLanguages(false); }} />
+                  <button onClick={saveLanguages} disabled={savingLanguages} className="px-3 py-1 text-[12px] font-medium rounded-lg text-white disabled:opacity-50" style={{ background: "var(--ink)" }}>{savingLanguages ? "…" : "Save"}</button>
                   <button onClick={() => setEditingLanguages(false)} className="px-2 py-1 text-[12px] font-medium" style={{ color: "var(--muted)" }}>Cancel</button>
                 </div>
               ) : (
-                <button onClick={startEditLanguages} className="group inline-flex items-center gap-1.5 transition-opacity" style={{ color: "var(--muted)" }}>
-                  <span className="font-mono text-[11px] uppercase tracking-[0.14em]">
-                    {document?.front_language && document?.back_language
-                      ? `${document.front_language} → ${document.back_language}`
-                      : "Set vocab languages"}
+                <button onClick={startEditLanguages} className="inline-flex items-center gap-2 px-3 py-2 rounded-xl transition-colors hover:opacity-80" style={{ background: "var(--bg-2)" }}>
+                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--muted)" }}><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>
+                  <span className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: document?.front_language && document?.back_language ? "var(--ink)" : "var(--muted)" }}>
+                    {document?.front_language && document?.back_language ? `${document.front_language} → ${document.back_language}` : "Set vocab languages"}
                   </span>
-                  <PencilIcon className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <PencilIcon />
                 </button>
               )}
             </div>
@@ -904,16 +900,18 @@ export default function DeckPage() {
               <>
                 <button
                   onClick={() => setConfirmingReset(true)}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors"
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors hover:opacity-70"
                   style={{ color: "var(--muted)" }}
                   title="Reset cooldowns"
                 >
                   <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>
                   </svg>
+                  Reset
                 </button>
-                <button onClick={() => setConfirming(true)} className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors" style={{ color: "var(--muted)" }}>
+                <button onClick={() => setConfirming(true)} className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors hover:opacity-70" style={{ color: "var(--muted)" }}>
                   <TrashIcon />
+                  Delete
                 </button>
               </>
             )}
@@ -994,16 +992,6 @@ export default function DeckPage() {
       {/* Scrollable content — padded to sit below fixed hero */}
       <div style={{ paddingTop: heroHeight }}>
       <div className="max-w-4xl mx-auto px-6 pt-8 pb-40">
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center gap-2 mb-8 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors"
-          style={{ color: "var(--muted)" }}
-        >
-          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 12H5"/><path d="m12 5-7 7 7 7"/>
-          </svg>
-          All decks
-        </Link>
         {/* Playlists */}
         {(playlists.length > 0 || cards.length > 0) && (
           <div className="mb-10">
@@ -1478,76 +1466,80 @@ export default function DeckPage() {
         )}
 
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-serif text-[28px] leading-tight text-[var(--ink)]">All cards</h2>
-            <div className="flex items-center gap-3">
-              <Eyebrow>{generating ? "Generating…" : `${cards.length} total`}</Eyebrow>
-              {!generating && cards.length > 0 && (
-                <button
-                  onClick={() => { setSelectionMode(v => !v); setSelectedIds(new Set()); setConfirmBulkDelete(false); setBulkPlaylistId(null); }}
-                  className="font-mono text-[11px] uppercase tracking-[0.14em] px-2.5 py-1 rounded-full transition-colors"
-                  style={{ background: selectionMode ? "var(--ink)" : "var(--bg-2)", color: selectionMode ? "var(--bg)" : "var(--muted)" }}
-                >
-                  {selectionMode ? "Cancel" : "Select"}
-                </button>
-              )}
-              {!generating && cards.length > 0 && (
-                <select
-                  value={cardSort}
-                  onChange={(e) => setCardSort(e.target.value as typeof cardSort)}
-                  className="px-2 py-1 rounded-lg text-[12px] font-mono bg-white outline-none appearance-none cursor-pointer"
-                  style={{ border: "1px solid var(--border)", color: "var(--muted)" }}
-                >
-                  <option value="custom">Sort: Custom</option>
-                  <option value="front-asc">Sort: A→Z</option>
-                  <option value="front-desc">Sort: Z→A</option>
-                  <option value="date-new">Sort: Newest</option>
-                  <option value="date-old">Sort: Oldest</option>
-                  <option value="level-asc">Sort: Level Low→High</option>
-                  <option value="level-desc">Sort: Level High→Low</option>
-                </select>
-              )}
-              {!generating && cards.length > 0 && (
-                <div className="flex items-center gap-1">
-                  {([
-                    { mode: "list", title: "List", icon: <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/> },
-                    { mode: "grid-small", title: "Small grid", icon: <><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></> },
-                    { mode: "grid-large", title: "Large grid", icon: <><rect x="3" y="3" width="8" height="11"/><rect x="13" y="3" width="8" height="11"/><rect x="3" y="16" width="18" height="5"/></> },
-                  ] as const).map(({ mode, title, icon }) => (
-                    <button key={mode} onClick={() => setViewMode(mode)} title={title}
-                      className="p-1 rounded transition-colors"
-                      style={{ color: viewMode === mode ? "var(--ink)" : "var(--muted)", background: viewMode === mode ? "var(--bg-2)" : "transparent" }}>
-                      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        {icon}
-                      </svg>
-                    </button>
-                  ))}
-                </div>
-              )}
+          {/* Sticky "All cards" bar — sticks below hero 1 when scrolling */}
+          <div className="sticky z-10 -mx-6 px-6 pb-4 pt-3" style={{ top: 47 + heroHeight, background: "var(--bg)" }}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-serif text-[28px] leading-tight text-[var(--ink)]">All cards</h2>
+              <div className="flex items-center gap-3">
+                <Eyebrow>{generating ? "Generating…" : `${cards.length} total`}</Eyebrow>
+                {!generating && cards.length > 0 && (
+                  <button
+                    onClick={() => { setSelectionMode(v => !v); setSelectedIds(new Set()); setConfirmBulkDelete(false); setBulkPlaylistId(null); }}
+                    className="font-mono text-[11px] uppercase tracking-[0.14em] px-2.5 py-1 rounded-full transition-colors"
+                    style={{ background: selectionMode ? "var(--ink)" : "var(--bg-2)", color: selectionMode ? "var(--bg)" : "var(--muted)" }}
+                  >
+                    {selectionMode ? "Cancel" : "Select"}
+                  </button>
+                )}
+                {!generating && cards.length > 0 && (
+                  <select
+                    value={cardSort}
+                    onChange={(e) => setCardSort(e.target.value as typeof cardSort)}
+                    className="px-2 py-1 rounded-lg text-[12px] font-mono bg-white outline-none appearance-none cursor-pointer"
+                    style={{ border: "1px solid var(--border)", color: "var(--muted)" }}
+                  >
+                    <option value="custom">Sort: Custom</option>
+                    <option value="front-asc">Sort: A→Z</option>
+                    <option value="front-desc">Sort: Z→A</option>
+                    <option value="date-new">Sort: Newest</option>
+                    <option value="date-old">Sort: Oldest</option>
+                    <option value="level-asc">Sort: Level Low→High</option>
+                    <option value="level-desc">Sort: Level High→Low</option>
+                  </select>
+                )}
+                {!generating && cards.length > 0 && (
+                  <div className="flex items-center gap-1">
+                    {([
+                      { mode: "list", title: "List", icon: <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/> },
+                      { mode: "grid-small", title: "Small grid", icon: <><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></> },
+                      { mode: "grid-large", title: "Large grid", icon: <><rect x="3" y="3" width="8" height="11"/><rect x="13" y="3" width="8" height="11"/><rect x="3" y="16" width="18" height="5"/></> },
+                    ] as const).map(({ mode, title, icon }) => (
+                      <button key={mode} onClick={() => setViewMode(mode)} title={title}
+                        className="p-1 rounded transition-colors"
+                        style={{ color: viewMode === mode ? "var(--ink)" : "var(--muted)", background: viewMode === mode ? "var(--bg-2)" : "transparent" }}>
+                        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          {icon}
+                        </svg>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
-          {!generating && cards.length > 0 && (
-            <div className="relative mb-6">
-              <svg viewBox="0 0 24 24" className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--muted)" }}>
-                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-              </svg>
-              <input
-                value={cardSearch}
-                onChange={(e) => setCardSearch(e.target.value)}
-                placeholder="Search cards…"
-                className="w-full pl-10 pr-8 py-2.5 rounded-xl text-[14px] bg-white outline-none"
-                style={{ border: "1px solid var(--border)", color: "var(--ink)" }}
-              />
-              {cardSearch && (
-                <button onClick={() => setCardSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }}>
-                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18 6 6 18M6 6l12 12"/>
-                  </svg>
+            {!generating && cards.length > 0 && (
+              <div className="relative">
+                <svg viewBox="0 0 24 24" className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--muted)" }}>
+                  <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                </svg>
+                <input
+                  value={cardSearch}
+                  onChange={(e) => setCardSearch(e.target.value)}
+                  placeholder="Search cards…"
+                  className="w-full pl-10 pr-8 py-2.5 rounded-xl text-[14px] bg-white outline-none"
+                  style={{ border: "1px solid var(--border)", color: "var(--ink)" }}
+                />
+                {cardSearch && (
+                  <button onClick={() => setCardSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }}>
+                    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 6 6 18M6 6l12 12"/>
+                    </svg>
                 </button>
               )}
             </div>
           )}
+          </div>
+          {/* End sticky "All cards" bar */}
 
           {addingCard && (
             <div className="mb-6 p-6 rounded-2xl" style={{ border: "1px solid var(--accent-tint)", background: "var(--accent-bg)" }}>
