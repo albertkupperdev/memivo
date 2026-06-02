@@ -98,6 +98,24 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
   // Search
   const [query, setQuery] = useState("");
 
+  // Hero scroll
+  const heroRef = useRef<HTMLDivElement>(null);
+  const [heroHeight, setHeroHeight] = useState(0);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    if (!heroRef.current) return;
+    const obs = new ResizeObserver(() => setHeroHeight(heroRef.current?.offsetHeight ?? 0));
+    obs.observe(heroRef.current);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   const totalDue = decks.reduce((acc, d) => acc + d.dueCount, 0);
   const totalCards = decks.reduce((acc, d) => acc + d.cardCount, 0);
 
@@ -240,70 +258,62 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
 
   return (
     <div className="flex-1 w-full">
-      <div className="max-w-4xl mx-auto px-6 py-16">
-        <header className="mb-12">
-          <div className="flex items-start justify-between gap-4 mb-6">
+
+      {/* Fixed hero */}
+      <div ref={heroRef} className="fixed left-0 right-0 z-20" style={{ top: 47, background: "var(--bg)", borderBottom: "1px solid var(--border)" }}>
+        <div className={`max-w-4xl mx-auto px-6 transition-all duration-300 ${scrolled ? "py-3" : "py-10"}`}>
+
+          {/* Top row — always visible */}
+          <div className="flex items-center justify-between gap-4 mb-2">
             <Eyebrow>Library · {new Date().getFullYear()}</Eyebrow>
             <div className="flex items-center gap-2">
-              <Link
-                href="/trash"
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] rounded-full transition-colors"
-                style={{ color: "var(--muted)" }}
-              >
-                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                </svg>
+              <Link href="/trash" className="inline-flex items-center gap-1.5 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] rounded-full transition-colors" style={{ color: "var(--muted)" }}>
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
                 Trash
               </Link>
-              <Link
-                href="/settings"
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] rounded-full transition-colors"
-                style={{ color: "var(--muted)" }}
-              >
-                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>
-                </svg>
+              <Link href="/settings" className="inline-flex items-center gap-1.5 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] rounded-full transition-colors" style={{ color: "var(--muted)" }}>
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
                 Settings
               </Link>
-              <button
-                onClick={handleSignOut}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] rounded-full transition-colors"
-                style={{ color: "var(--muted)" }}
-              >
-                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>
-                </svg>
+              <button onClick={handleSignOut} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] rounded-full transition-colors" style={{ color: "var(--muted)" }}>
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
                 Sign out
               </button>
             </div>
           </div>
 
-          <h1 className="font-serif text-[56px] leading-[1.0] text-[var(--ink)]">
+          {/* Title — always visible, shrinks on scroll */}
+          <h1 className={`font-serif leading-[1.0] text-[var(--ink)] transition-all duration-300 ${scrolled ? "text-[24px]" : "text-[56px]"}`}>
             Your <em className="not-italic" style={{ color: "var(--accent-deep)" }}>decks</em>.
           </h1>
 
-          <div className="mt-7 grid grid-cols-3 divide-x" style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
-            <StatCell label="Decks" value={decks.length} />
-            <StatCell label="Cards" value={totalCards} />
-            <StatCell label="Due now" value={totalDue} accent={totalDue > 0} />
-          </div>
-
-          {(streak > 0 || totalXp > 0) && (
-            <div className="mt-4 flex items-center gap-4">
-              {streak > 0 && (
-                <span className="inline-flex items-center gap-1.5 font-mono text-[12px] uppercase tracking-[0.12em]" style={{ color: "var(--ink)" }}>
-                  🔥 <span className="font-serif text-[18px]">{streak}</span> day streak
-                </span>
+          {/* Stats + streak — hidden when scrolled */}
+          {!scrolled && (
+            <>
+              <div className="mt-7 grid grid-cols-3 divide-x" style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
+                <StatCell label="Decks" value={decks.length} />
+                <StatCell label="Cards" value={totalCards} />
+                <StatCell label="Due now" value={totalDue} accent={totalDue > 0} />
+              </div>
+              {(streak > 0 || totalXp > 0) && (
+                <div className="mt-4 flex items-center gap-4">
+                  {streak > 0 && (
+                    <span className="inline-flex items-center gap-1.5 font-mono text-[12px] uppercase tracking-[0.12em]" style={{ color: "var(--ink)" }}>
+                      🔥 <span className="font-serif text-[18px]">{streak}</span> day streak
+                    </span>
+                  )}
+                  {totalXp > 0 && (
+                    <span className="inline-flex items-center gap-1.5 font-mono text-[12px] uppercase tracking-[0.12em]" style={{ color: "var(--accent-deep)" }}>
+                      ⚡ <span className="font-serif text-[18px]">{totalXp.toLocaleString()}</span> XP
+                    </span>
+                  )}
+                </div>
               )}
-              {totalXp > 0 && (
-                <span className="inline-flex items-center gap-1.5 font-mono text-[12px] uppercase tracking-[0.12em]" style={{ color: "var(--accent-deep)" }}>
-                  ⚡ <span className="font-serif text-[18px]">{totalXp.toLocaleString()}</span> XP
-                </span>
-              )}
-            </div>
+            </>
           )}
 
-          <div className="mt-5 flex gap-2">
+          {/* Search + sort — always visible */}
+          <div className={`flex gap-2 ${scrolled ? "mt-2" : "mt-5"}`}>
             <div className="relative flex-1">
               <svg viewBox="0 0 24 24" className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--muted)" }}>
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -317,9 +327,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
               />
               {query && (
                 <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }}>
-                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18 6 6 18M6 6l12 12"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
                 </button>
               )}
             </div>
@@ -337,7 +345,12 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
               <option value="due">Sort by: Most due</option>
             </select>
           </div>
-        </header>
+        </div>
+      </div>
+
+      {/* Scrollable content */}
+      <div style={{ paddingTop: heroHeight }}>
+      <div className="max-w-4xl mx-auto px-6 pt-8 pb-40">
 
         {/* Actions */}
         <div className="mb-8 flex gap-2">
@@ -606,6 +619,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
             )}
           </div>
         )}
+      </div>
       </div>
     </div>
   );
