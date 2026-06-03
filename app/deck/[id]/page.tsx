@@ -719,7 +719,7 @@ export default function DeckPage() {
     <div className="flex-1 w-full">
       {/* Fixed hero — fixed so height changes don't affect scrollY */}
       <div ref={heroRef} className="fixed left-0 right-0 z-20" style={{ top: 47, background: "var(--bg)", borderBottom: "1px solid var(--border)" }}>
-        <div className={`max-w-4xl mx-auto px-6 transition-all duration-300 ${scrolled ? "py-3" : "py-7"}`}>
+        <div className={`max-w-4xl mx-auto px-6 duration-300 transition-[padding] ${scrolled ? "py-3" : "py-7"}`}>
 
           {/* Top row — back link + settings */}
           <div className="flex items-center justify-between mb-3">
@@ -783,7 +783,7 @@ export default function DeckPage() {
                   if (e.key === "Enter") saveRename();
                   if (e.key === "Escape") setRenamingDeck(false);
                 }}
-                className={`w-full font-serif leading-tight text-[var(--ink)] bg-transparent outline-none border-b-2 transition-all duration-300 ${scrolled ? "text-[22px]" : "text-[40px]"}`}
+                className={`w-full font-serif leading-tight text-[var(--ink)] bg-transparent outline-none border-b-2 duration-300 transition-[font-size] ${scrolled ? "text-[22px]" : "text-[40px]"}`}
                 style={{ borderColor: "var(--accent)" }}
                 autoFocus
               />
@@ -798,7 +798,7 @@ export default function DeckPage() {
             </div>
           ) : (
             <div className={`group flex items-baseline gap-3 ${scrolled ? "mt-0" : "mt-2"}`}>
-              <h1 className={`font-serif leading-tight text-[var(--ink)] transition-all duration-300 ${scrolled ? "text-[22px]" : "text-[40px]"}`}>
+              <h1 className={`font-serif leading-tight text-[var(--ink)] duration-300 transition-[font-size] ${scrolled ? "text-[22px]" : "text-[40px]"}`}>
                 {document?.title ?? "Loading…"}
               </h1>
               {scrolled && dueCount > 0 && (
@@ -1015,7 +1015,7 @@ export default function DeckPage() {
       </div>
 
       {/* Scrollable content — padded to sit below fixed hero */}
-      <div style={{ paddingTop: heroHeight }}>
+      <div className="duration-300 transition-[padding-top]" style={{ paddingTop: heroHeight }}>
       <div className="max-w-4xl mx-auto px-6 pt-8 pb-40">
         {/* Playlists */}
         {(playlists.length > 0 || cards.length > 0) && (

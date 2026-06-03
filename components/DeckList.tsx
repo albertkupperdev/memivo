@@ -261,7 +261,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
 
       {/* Fixed hero */}
       <div ref={heroRef} className="fixed left-0 right-0 z-20" style={{ top: 47, background: "var(--bg)", borderBottom: "1px solid var(--border)" }}>
-        <div className={`max-w-4xl mx-auto px-6 transition-all duration-300 ${scrolled ? "py-3" : "py-10"}`}>
+        <div className={`max-w-4xl mx-auto px-6 duration-300 transition-[padding] ${scrolled ? "py-3" : "py-10"}`}>
 
           {/* Top row — always visible */}
           <div className="flex items-center justify-between gap-4 mb-2">
@@ -283,7 +283,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
           </div>
 
           {/* Title — always visible, shrinks on scroll */}
-          <h1 className={`font-serif leading-[1.0] text-[var(--ink)] transition-all duration-300 ${scrolled ? "text-[24px]" : "text-[56px]"}`}>
+          <h1 className={`font-serif leading-[1.0] text-[var(--ink)] duration-300 transition-[font-size] ${scrolled ? "text-[24px]" : "text-[56px]"}`}>
             Your <em className="not-italic" style={{ color: "var(--accent-deep)" }}>decks</em>.
           </h1>
 
@@ -349,7 +349,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
       </div>
 
       {/* Scrollable content */}
-      <div style={{ paddingTop: heroHeight }}>
+      <div className="duration-300 transition-[padding-top]" style={{ paddingTop: heroHeight }}>
       <div className="max-w-4xl mx-auto px-6 pt-8 pb-40">
 
         {/* Actions */}
