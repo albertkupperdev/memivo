@@ -342,7 +342,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
       </div>
 
       {/* Scrollable content */}
-      <div style={{ paddingTop: heroHeight }}>
+      <div style={{ paddingTop: heroHeight, minHeight: 1000 }}>
       <div className="max-w-4xl mx-auto px-6 pt-8 pb-40">
 
         {/* Actions */}

@@ -1007,7 +1007,7 @@ export default function DeckPage() {
       </div>
 
       {/* Scrollable content — padded to sit below fixed hero */}
-      <div style={{ paddingTop: heroHeight }}>
+      <div style={{ paddingTop: heroHeight, minHeight: 1000 }}>
       <div className="max-w-4xl mx-auto px-6 pt-8 pb-40">
         {/* Playlists */}
         {(playlists.length > 0 || cards.length > 0) && (
