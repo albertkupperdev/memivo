@@ -174,10 +174,21 @@ export default function DeckPage() {
   // Scroll-aware header
   const [scrolled, setScrolled] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
-  const heroHeight = scrolled ? 185 : 420;
+  const [heroHeight, setHeroHeight] = useState(420);
 
   useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 80);
+    if (!heroRef.current) return;
+    const ro = new ResizeObserver(() => setHeroHeight(heroRef.current?.offsetHeight ?? 420));
+    ro.observe(heroRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setScrolled(prev => {
+      if (!prev && window.scrollY > 60) return true;
+      if (prev && window.scrollY < 20) return false;
+      return prev;
+    });
     window.addEventListener("scroll", handler, { passive: true });
     return () => window.removeEventListener("scroll", handler);
   }, []);

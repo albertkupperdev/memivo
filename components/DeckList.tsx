@@ -101,10 +101,21 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
   // Hero scroll
   const heroRef = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
-  const heroHeight = scrolled ? 110 : 420;
+  const [heroHeight, setHeroHeight] = useState(420);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 10);
+    if (!heroRef.current) return;
+    const ro = new ResizeObserver(() => setHeroHeight(heroRef.current?.offsetHeight ?? 420));
+    ro.observe(heroRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(prev => {
+      if (!prev && window.scrollY > 60) return true;
+      if (prev && window.scrollY < 20) return false;
+      return prev;
+    });
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
