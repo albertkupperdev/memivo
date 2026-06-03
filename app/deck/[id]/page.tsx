@@ -173,8 +173,8 @@ export default function DeckPage() {
 
   // Scroll-aware header
   const [scrolled, setScrolled] = useState(false);
-  const [heroHeight, setHeroHeight] = useState(0);
   const heroRef = useRef<HTMLDivElement>(null);
+  const heroHeight = scrolled ? 185 : 420;
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 80);
@@ -182,14 +182,6 @@ export default function DeckPage() {
     return () => window.removeEventListener("scroll", handler);
   }, []);
 
-  useEffect(() => {
-    if (!heroRef.current) return;
-    const ro = new ResizeObserver(([entry]) => {
-      setHeroHeight(entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height);
-    });
-    ro.observe(heroRef.current);
-    return () => ro.disconnect();
-  }, []);
 
   // Deck rename
   const [renamingDeck, setRenamingDeck] = useState(false);
@@ -928,7 +920,7 @@ export default function DeckPage() {
                     key={pl.id}
                     onClick={() => {
                       setExpandedPlaylistId(isActive ? null : pl.id);
-                      setTimeout(() => document.getElementById(`playlist-${pl.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+                      setTimeout(() => window.document.getElementById(`playlist-${pl.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
                     }}
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-colors"
                     style={{ background: isActive ? "var(--ink)" : "var(--bg-2)", color: isActive ? "var(--bg)" : "var(--ink)" }}
@@ -1015,7 +1007,7 @@ export default function DeckPage() {
       </div>
 
       {/* Scrollable content — padded to sit below fixed hero */}
-      <div className="duration-300 transition-[padding-top]" style={{ paddingTop: heroHeight }}>
+      <div style={{ paddingTop: heroHeight }}>
       <div className="max-w-4xl mx-auto px-6 pt-8 pb-40">
         {/* Playlists */}
         {(playlists.length > 0 || cards.length > 0) && (

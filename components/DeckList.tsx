@@ -100,15 +100,8 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
 
   // Hero scroll
   const heroRef = useRef<HTMLDivElement>(null);
-  const [heroHeight, setHeroHeight] = useState(0);
   const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    if (!heroRef.current) return;
-    const obs = new ResizeObserver(() => setHeroHeight(heroRef.current?.offsetHeight ?? 0));
-    obs.observe(heroRef.current);
-    return () => obs.disconnect();
-  }, []);
+  const heroHeight = scrolled ? 110 : 320;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -349,7 +342,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
       </div>
 
       {/* Scrollable content */}
-      <div className="duration-300 transition-[padding-top]" style={{ paddingTop: heroHeight }}>
+      <div style={{ paddingTop: heroHeight }}>
       <div className="max-w-4xl mx-auto px-6 pt-8 pb-40">
 
         {/* Actions */}
