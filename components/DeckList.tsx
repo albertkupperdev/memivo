@@ -102,13 +102,18 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
   const heroRef = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
   const [heroHeight, setHeroHeight] = useState(420);
+  const [contentOffset, setContentOffset] = useState(420);
 
   useEffect(() => {
     if (!heroRef.current) return;
-    const ro = new ResizeObserver(() => setHeroHeight(heroRef.current?.offsetHeight ?? 420));
+    const ro = new ResizeObserver(() => {
+      const h = heroRef.current?.offsetHeight ?? 420;
+      setHeroHeight(h);
+      if (!scrolled) setContentOffset(h);
+    });
     ro.observe(heroRef.current);
     return () => ro.disconnect();
-  }, []);
+  }, [scrolled]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(prev => {
@@ -294,7 +299,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
           {/* Stats + streak — hidden when scrolled */}
           {!scrolled && (
             <>
-              <div className="mt-7 grid grid-cols-3 divide-x" style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
+              <div className="mt-7 grid grid-cols-3 divide-x" style={{ borderTop: "1px solid rgba(0,0,0,0.07)", borderBottom: "1px solid rgba(0,0,0,0.07)", borderColor: "rgba(0,0,0,0.07)" }}>
                 <StatCell label="Decks" value={decks.length} />
                 <StatCell label="Cards" value={totalCards} />
                 <StatCell label="Due now" value={totalDue} accent={totalDue > 0} />
@@ -353,7 +358,7 @@ export default function DeckList({ decks: initialDecks, folders: initialFolders,
       </div>
 
       {/* Scrollable content */}
-      <div style={{ paddingTop: heroHeight, minHeight: 1000 }}>
+      <div style={{ paddingTop: contentOffset, minHeight: 1000 }}>
       <div className="max-w-4xl mx-auto px-6 pt-8 pb-40">
 
         {/* Actions */}

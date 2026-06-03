@@ -175,13 +175,18 @@ export default function DeckPage() {
   const [scrolled, setScrolled] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
   const [heroHeight, setHeroHeight] = useState(420);
+  const [contentOffset, setContentOffset] = useState(420);
 
   useEffect(() => {
     if (!heroRef.current) return;
-    const ro = new ResizeObserver(() => setHeroHeight(heroRef.current?.offsetHeight ?? 420));
+    const ro = new ResizeObserver(() => {
+      const h = heroRef.current?.offsetHeight ?? 420;
+      setHeroHeight(h);
+      if (!scrolled) setContentOffset(h);
+    });
     ro.observe(heroRef.current);
     return () => ro.disconnect();
-  }, []);
+  }, [scrolled]);
 
   useEffect(() => {
     const handler = () => setScrolled(prev => {
@@ -1018,7 +1023,7 @@ export default function DeckPage() {
       </div>
 
       {/* Scrollable content — padded to sit below fixed hero */}
-      <div style={{ paddingTop: heroHeight, minHeight: 1000 }}>
+      <div style={{ paddingTop: contentOffset, minHeight: 1000 }}>
       <div className="max-w-4xl mx-auto px-6 pt-8 pb-40">
         {/* Playlists */}
         {(playlists.length > 0 || cards.length > 0) && (
