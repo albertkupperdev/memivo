@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -42,10 +43,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md relative z-10">
         <div className="flex flex-col items-center text-center mb-10">
           {/* Logo */}
-          <div className="relative w-11 h-11 flex items-center justify-center mb-7">
-            <span className="absolute inset-0 rounded-full" style={{ background: "var(--accent)" }} />
-            <span className="relative font-serif text-[var(--ink)] text-xl leading-none">M</span>
-          </div>
+          <Image src="/logo-mark.png" alt="Memivo" width={44} height={44} className="mb-7" />
 
           <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">
             Memivo · Sign in
