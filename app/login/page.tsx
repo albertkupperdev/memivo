@@ -1,16 +1,36 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [guestLoading, setGuestLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  async function handleGuest() {
+    setGuestLoading(true);
+    setError(null);
+
+    const supabase = createClient();
+    const { error: signInError } = await supabase.auth.signInAnonymously();
+
+    if (signInError) {
+      setError(signInError.message);
+      setGuestLoading(false);
+      return;
+    }
+
+    await fetch("/api/guest/seed", { method: "POST" });
+    router.push("/dashboard");
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -117,7 +137,23 @@ export default function LoginPage() {
               By continuing, you agree to our Terms and Privacy Policy.
             </p>
           </form>
-        ) : (
+        ) : null}
+
+        {!submitted && (
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={handleGuest}
+              disabled={guestLoading}
+              className="text-sm font-medium underline-offset-4 hover:underline transition-colors"
+              style={{ color: "var(--ink-soft)", cursor: guestLoading ? "not-allowed" : "pointer" }}
+            >
+              {guestLoading ? "Setting up your demo…" : "Try it as a guest — no email needed"}
+            </button>
+          </div>
+        )}
+
+        {submitted && (
           <div className="bg-white rounded-2xl p-8" style={{ border: "1px solid var(--border)", boxShadow: "0 1px 2px rgba(22,23,15,0.04)" }}>
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "var(--accent-bg)", color: "var(--accent-deep)" }}>
